@@ -84,30 +84,87 @@
   .license-badge b{ color:var(--ink); font-weight:700; }
   .license-badge svg{ color:var(--ok); }
 
-  /* ============ Donation cards ============ */
-  .cards{ display:grid; gap:13px; }
-  .card{
-    background: var(--white); border:1px solid var(--line); border-radius:var(--radius-lg);
-    padding:16px; box-shadow: var(--shadow-sm); cursor:pointer;
+  /* ============ Hadith marquee ============ */
+  .marquee-band{
+    background: var(--ink); border-radius:30px; overflow:hidden; margin-bottom:20px;
+    box-shadow: var(--shadow-sm); position:relative;
+  }
+  .marquee-band::before, .marquee-band::after{
+    content:''; position:absolute; top:0; bottom:0; width:24px; z-index:2; pointer-events:none;
+  }
+  .marquee-band::before{ inset-inline-start:0; background:linear-gradient(90deg, var(--ink), transparent); }
+  .marquee-band::after{ inset-inline-end:0; background:linear-gradient(270deg, var(--ink), transparent); }
+  .marquee-track{
+    display:flex; width:max-content; white-space:nowrap; padding:11px 0;
+    animation: marquee-scroll 38s linear infinite;
+  }
+  .marquee-track span{ color:var(--gold-light); font-size:12.5px; padding:0 28px; display:inline-flex; align-items:center; gap:8px; }
+  .marquee-track span b{ color:var(--white); font-weight:700; }
+  .marquee-track span::after{ content:'٭'; color:var(--gold-dark); margin-inline-start:28px; }
+  @keyframes marquee-scroll{ from{ transform:translateX(0); } to{ transform:translateX(-50%); } }
+  @media (prefers-reduced-motion: reduce){ .marquee-track{ animation:none; overflow-x:auto; } }
+
+  /* ============ Home layout: spotlight + side rail ============ */
+  .home-layout{ display:flex; flex-direction:column; gap:16px; }
+  @media (min-width: 680px){
+    .home-layout{ flex-direction:row-reverse; align-items:flex-start; }
+    .category-rail{ flex-direction:column; width:220px; flex-shrink:0; }
+    #featuredSpotlight{ flex:1; }
+  }
+
+  .spotlight-card{
+    background: linear-gradient(165deg, var(--ink) 0%, var(--ink-2) 100%);
+    border-radius: var(--radius-lg); padding:24px 20px; color:var(--white);
+    box-shadow: var(--shadow); position:relative; overflow:hidden; text-align:center; cursor:pointer;
+  }
+  .spotlight-card::before{
+    content:''; position:absolute; inset:0;
+    background: radial-gradient(circle at 85% -10%, rgba(173,138,69,0.35), transparent 55%);
+  }
+  .spotlight-eyebrow{
+    display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.12);
+    color:var(--gold-light); font-size:11px; font-weight:700; padding:5px 13px; border-radius:20px;
+    margin-bottom:14px; position:relative;
+  }
+  .spotlight-icon{
+    width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,0.1);
+    display:flex;align-items:center;justify-content:center;margin:0 auto 12px; color:var(--gold-light); position:relative;
+  }
+  .spotlight-card h2{ font-family:'Amiri',serif; font-size:22px; margin:0 0 6px; position:relative; font-weight:700; }
+  .spotlight-card p{ margin:0 0 16px; font-size:13px; opacity:.85; line-height:1.6; position:relative; max-width:340px; margin-inline:auto; }
+  .spotlight-card .bar{ background:rgba(255,255,255,0.15); }
+  .spotlight-card .bar > div{ background: linear-gradient(90deg, var(--gold-light), var(--gold)); }
+  .spotlight-card .prog-labels{ color:rgba(255,255,255,0.75); position:relative; }
+  .spotlight-card .goal-met{ color:var(--gold-light); justify-content:center; position:relative; }
+  .spotlight-cta{
+    margin-top:16px; display:inline-flex; align-items:center; gap:8px; background:var(--gold);
+    color:var(--ink); font-weight:800; font-size:13.5px; padding:11px 26px; border-radius:30px;
+    position:relative;
+  }
+  .spotlight-empty{
+    border:1px dashed var(--line); border-radius:var(--radius-lg); padding:24px; text-align:center;
+    color:var(--ink-2); font-size:12.5px; background:var(--white);
+  }
+
+  .category-rail{ display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; }
+  .rail-chip{
+    background: var(--white); border:1px solid var(--line); border-radius:14px;
+    padding:12px 14px; box-shadow: var(--shadow-sm); cursor:pointer; flex-shrink:0;
+    display:flex; align-items:center; gap:10px; min-width:150px;
     transition: transform .15s ease, box-shadow .15s ease;
-    position:relative; overflow:hidden;
-    display:flex; gap:14px; align-items:flex-start;
   }
-  .card:hover{ box-shadow: var(--shadow); }
-  .card:active{ transform: scale(.98); }
-  .card::before{
-    content:''; position:absolute; inset-inline-start:0; top:0; bottom:0; width:4px;
-    background: var(--gold);
-  }
-  .card .cat-icon{
-    width:42px;height:42px;border-radius:12px;background:var(--parchment-2);
+  .rail-chip:hover{ box-shadow: var(--shadow); }
+  .rail-chip:active{ transform: scale(.97); }
+  .rail-chip .cat-icon{
+    width:36px;height:36px;border-radius:10px;background:var(--parchment-2);
     display:flex;align-items:center;justify-content:center;flex-shrink:0; color:var(--ink-2);
   }
-  .card .cat-body{ flex:1; min-width:0; }
-  .card h3{ font-family:'Amiri', serif; font-size:18px; margin:0 0 3px; font-weight:700; }
-  .card p.desc{ margin:0; font-size:12.5px; color:var(--ink-2); opacity:.85; line-height:1.5; }
-  .progress-wrap{ margin-top:12px; }
-  .bar{ height:7px; border-radius:6px; background:var(--parchment-2); overflow:hidden; }
+  .rail-chip .rail-text b{ display:block; font-size:13px; font-family:'Amiri',serif; font-weight:700; }
+  .rail-chip .rail-text span{ display:block; font-size:10.5px; color:var(--ink-2); opacity:.8; margin-top:1px; }
+  @media (min-width: 680px){
+    .rail-chip{ min-width:0; }
+  }
+
   .bar > div{ height:100%; background: linear-gradient(90deg, var(--gold), var(--rose)); border-radius:6px; transition:width .4s ease; }
   .prog-labels{ display:flex; justify-content:space-between; font-size:11px; color:var(--ink-2); margin-top:6px; }
   .goal-met{ display:inline-flex; align-items:center; gap:5px; color:var(--ok); font-size:11.5px; font-weight:700; margin-top:8px; }
@@ -251,7 +308,16 @@
 <!-- ============ Public donation page ============ -->
 <div class="wrap" id="publicView">
   <header class="site-header" id="siteHeader"></header>
-  <div class="cards" id="cardsContainer"></div>
+
+  <div class="marquee-band">
+    <div class="marquee-track" id="marqueeTrack"></div>
+  </div>
+
+  <div class="home-layout">
+    <div id="featuredSpotlight"></div>
+    <div class="category-rail" id="categoryRail"></div>
+  </div>
+
   <div class="footer-link"><a id="linkToAdmin">لوحة الإدارة</a></div>
 </div>
 
@@ -297,7 +363,7 @@
 <!-- ============ Admin ============ -->
 <div class="wrap admin-wrap" id="adminView">
   <div class="pin-gate" id="pinGate">
-    <div class="seal" style="width:66px;height:66px;"><div class="ring"></div><div class="core"><span>ﷲ</span></div></div>
+    <div id="pinGateSeal"></div>
     <h1 style="font-size:19px; font-family:'Amiri',serif; margin:14px 0 4px;">دخول الإدارة</h1>
     <p style="color:var(--ink-2); font-size:12.5px; margin:0 0 6px;">أدخل رمز الدخول الخاص بالإدارة</p>
     <input type="text" id="pinInput" placeholder="••••" maxlength="6">
@@ -307,7 +373,7 @@
 
   <div id="adminPanel" style="display:none;">
     <div class="admin-header">
-      <div class="seal"><div class="ring"></div><div class="core"><span>ﷲ</span></div></div>
+      <div id="adminHeaderSeal"></div>
       <h1>لوحة الإدارة</h1>
     </div>
 
@@ -379,10 +445,19 @@ let state = {
   payment: { ...DEFAULT_PAYMENT },
   categories: [],
   pledges: [],
+  featuredCatId: null,
   activeCategory: null,
   pendingDraft: null,
   adminTab: 'pending',
 };
+
+const HADITHS = [
+  { text: 'الصدقة تُطفئ الخطيئة كما يُطفئ الماء النار', src: 'رواه الترمذي' },
+  { text: 'ما نقصت صدقة من مال', src: 'رواه مسلم' },
+  { text: 'كل معروف صدقة', src: 'متفق عليه' },
+  { text: 'اليد العليا خير من اليد السفلى', src: 'متفق عليه' },
+  { text: 'أفضل الصدقة جهد المُقِلّ', src: 'رواه أبو داود' },
+];
 
 /* =========================================================
    FIREBASE (shared, cross-device data)
@@ -416,8 +491,13 @@ async function loadAll(){
   state.payment   = await Store.load('payment', { ...DEFAULT_PAYMENT });
   state.categories = await Store.load('categories', DEFAULT_CATEGORIES);
   state.pledges   = await Store.load('pledges', []);
+  const featured  = await Store.load('featured', { catId: null });
+  state.featuredCatId = featured.catId;
   renderHeader();
-  renderCards();
+  renderAdminSeals();
+  renderMarquee();
+  renderSpotlight();
+  renderRail();
 }
 
 /* =========================================================
@@ -432,21 +512,27 @@ function showToast(msg, type){
 }
 function el(id){ return document.getElementById(id); }
 function money(n){ return Number(n).toFixed(2); }
+function sealHTML(inner){
+  const { logo } = state.identity;
+  return `<div class="ring"></div><div class="core">${logo ? `<img src="${logo}" alt="شعار المركز">` : `<span>${inner || 'ﷲ'}</span>`}</div>`;
+}
 
 /* =========================================================
-   PUBLIC VIEW: header + category cards
+   PUBLIC VIEW: header, marquee, spotlight, rail
    ========================================================= */
 function renderHeader(){
-  const { centerName, logo, licenseNumber } = state.identity;
+  const { centerName, licenseNumber } = state.identity;
   el('siteHeader').innerHTML = `
-    <div class="seal">
-      <div class="ring"></div>
-      <div class="core">${logo ? `<img src="${logo}" alt="شعار المركز">` : `<span>ﷲ</span>`}</div>
-    </div>
+    <div class="seal">${sealHTML()}</div>
     <h1>${centerName || DEFAULT_IDENTITY.centerName}</h1>
     <p class="tagline">بوابة التبرعات</p>
     ${licenseNumber ? `<div class="license-badge">${Icon.shield} جهة خيرية مرخّصة — رقم الترخيص <b>${licenseNumber}</b></div>` : ''}
   `;
+}
+
+function renderMarquee(){
+  const items = HADITHS.map(h => `<span>«${h.text}» <b>${h.src}</b></span>`).join('');
+  el('marqueeTrack').innerHTML = items + items; // duplicated for seamless loop
 }
 
 function confirmedTotal(catId){
@@ -455,36 +541,51 @@ function confirmedTotal(catId){
     .reduce((sum, p) => sum + p.amount, 0);
 }
 
-function renderCards(){
-  const container = el('cardsContainer');
-  container.innerHTML = state.categories.map(c => {
-    let progressHtml = '';
-    if(c.hasTarget){
-      const collected = confirmedTotal(c.id);
-      const pct = Math.min(100, (collected / c.target) * 100);
-      const remaining = Math.max(0, c.target - collected);
-      progressHtml = remaining <= 0
-        ? `<div class="goal-met">${Icon.checkCircle} تم الوصول للهدف — جزاكم الله خيراً</div>`
-        : `<div class="progress-wrap">
-            <div class="bar"><div style="width:${pct}%;"></div></div>
-            <div class="prog-labels">
-              <span>تم جمع ${money(collected)} د.ب</span>
-              <span>متبقي ${money(remaining)} د.ب</span>
-            </div>
-          </div>`;
-    }
-    return `<div class="card" data-cat="${c.id}">
-      <div class="cat-icon">${catIcon(c)}</div>
-      <div class="cat-body">
-        <h3>${c.name}</h3>
-        <p class="desc">${c.desc}</p>
-        ${progressHtml}
-      </div>
-    </div>`;
-  }).join('');
+function renderSpotlight(){
+  const container = el('featuredSpotlight');
+  const cat = state.categories.find(c => c.id === state.featuredCatId);
+  if(!cat){
+    container.innerHTML = `<div class="spotlight-empty">لم تختر الإدارة مشروعاً مميزاً بعد</div>`;
+    return;
+  }
+  let progressHtml = '';
+  if(cat.hasTarget){
+    const collected = confirmedTotal(cat.id);
+    const pct = Math.min(100, (collected / cat.target) * 100);
+    const remaining = Math.max(0, cat.target - collected);
+    progressHtml = remaining <= 0
+      ? `<div class="goal-met">${Icon.checkCircle} تم الوصول للهدف — جزاكم الله خيراً</div>`
+      : `<div class="progress-wrap">
+          <div class="bar"><div style="width:${pct}%;"></div></div>
+          <div class="prog-labels">
+            <span>تم جمع ${money(collected)} د.ب</span>
+            <span>متبقي ${money(remaining)} د.ب</span>
+          </div>
+        </div>`;
+  }
+  container.innerHTML = `
+    <div class="spotlight-card" data-cat="${cat.id}">
+      <div class="spotlight-eyebrow">${Icon.target} مشروع مميز</div>
+      <div class="spotlight-icon">${catIcon(cat)}</div>
+      <h2>${cat.name}</h2>
+      <p>${cat.desc}</p>
+      ${progressHtml}
+      <div class="spotlight-cta">تبرع الآن ${Icon.heart}</div>
+    </div>
+  `;
+  container.querySelector('.spotlight-card').addEventListener('click', ()=> openDonateModal(cat.id));
+}
 
-  container.querySelectorAll('.card').forEach(cardEl=>{
-    cardEl.addEventListener('click', ()=> openDonateModal(cardEl.dataset.cat));
+function renderRail(){
+  const container = el('categoryRail');
+  container.innerHTML = state.categories.map(c => `
+    <div class="rail-chip" data-cat="${c.id}">
+      <div class="cat-icon">${catIcon(c)}</div>
+      <div class="rail-text"><b>${c.name}</b><span>${c.desc}</span></div>
+    </div>
+  `).join('');
+  container.querySelectorAll('.rail-chip').forEach(chip=>{
+    chip.addEventListener('click', ()=> openDonateModal(chip.dataset.cat));
   });
 }
 
@@ -555,7 +656,8 @@ async function submitPledge(){
     await Store.save('pledges', state.pledges);
     el('qrStep').style.display = 'none';
     el('doneStep').style.display = 'block';
-    renderCards();
+    renderSpotlight();
+    renderRail();
   };
 
   if(fileInput.files && fileInput.files[0]){
@@ -597,7 +699,10 @@ function showPublicView(){
   el('publicView').style.display = 'block';
   el('adminView').classList.remove('show');
   renderHeader();
-  renderCards();
+  renderAdminSeals();
+  renderMarquee();
+  renderSpotlight();
+  renderRail();
 }
 function checkPin(){
   if(el('pinInput').value === ADMIN_PIN){
@@ -621,6 +726,10 @@ function renderTabLabels(){
   Object.entries(TAB_META).forEach(([key, meta])=>{
     el(meta.id).innerHTML = `${meta.icon}<span>${meta.label}</span>`;
   });
+}
+function renderAdminSeals(){
+  el('pinGateSeal').innerHTML = `<div class="seal" style="width:66px;height:66px;">${sealHTML()}</div>`;
+  el('adminHeaderSeal').innerHTML = `<div class="seal">${sealHTML()}</div>`;
 }
 function setAdminTab(tab){
   state.adminTab = tab;
@@ -701,13 +810,19 @@ function renderProjectsTab(content){
       <div class="pledge">
         <div class="cat-icon" style="width:38px;height:38px;">${catIcon(c)}</div>
         <div class="info"><b>${c.name}</b><span>${c.desc}${c.hasTarget ? ' — هدف: '+c.target+' د.ب' : ''}</span></div>
-        <div class="actions"><button class="cancel-btn" data-delcat="${c.id}">${Icon.trash} حذف</button></div>
+        <div class="actions">
+          <button class="${c.id === state.featuredCatId ? 'confirm-btn' : 'cancel-btn'}" data-feature="${c.id}">${Icon.target} ${c.id === state.featuredCatId ? 'مميز الآن' : 'اجعلها المميزة'}</button>
+          <button class="cancel-btn" data-delcat="${c.id}">${Icon.trash} حذف</button>
+        </div>
       </div>
     `).join('')}
   `;
   el('btnAddCategory').addEventListener('click', addCategory);
   content.querySelectorAll('[data-delcat]').forEach(btn=>{
     btn.addEventListener('click', ()=> deleteCategory(btn.dataset.delcat));
+  });
+  content.querySelectorAll('[data-feature]').forEach(btn=>{
+    btn.addEventListener('click', ()=> setFeatured(btn.dataset.feature));
   });
 }
 
@@ -775,6 +890,12 @@ async function addCategory(){
   showToast('تمت الإضافة', 'success');
   renderAdmin();
 }
+async function setFeatured(id){
+  state.featuredCatId = (state.featuredCatId === id) ? null : id;
+  await Store.save('featured', { catId: state.featuredCatId });
+  showToast(state.featuredCatId ? 'تم تعيينها كمشروع مميز' : 'تم إلغاء التمييز', 'success');
+  renderAdmin();
+}
 async function deleteCategory(id){
   state.categories = state.categories.filter(c => c.id !== id);
   await Store.save('categories', state.categories);
@@ -793,6 +914,7 @@ async function saveIdentity(){
       await Store.save('identity', state.identity);
       showToast('تم الحفظ', 'success');
       renderHeader();
+  renderAdminSeals();
       renderAdmin();
     };
     reader.readAsDataURL(fileInput.files[0]);
@@ -800,6 +922,7 @@ async function saveIdentity(){
     await Store.save('identity', state.identity);
     showToast('تم الحفظ', 'success');
     renderHeader();
+  renderAdminSeals();
     renderAdmin();
   }
 }
