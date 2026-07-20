@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>بوابة التبرعات</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  /* ============ Design tokens ============ */
+  :root{
+    --ink:#12332B;
+    --ink-2:#1E4A3E;
+    --parchment:#FBF7EE;
+    --parchment-2:#F3EBD9;
+    --gold:#AD8A45;
+    --gold-light:#D9C08E;
+    --rose:#8C3B3B;
+    --line:#E1D6BA;
+    --ok:#3E7A57;
+    --white:#fff;
+    --radius-lg:18px;
+    --radius-md:12px;
+    --radius-sm:8px;
+    --shadow: 0 10px 30px rgba(18,51,43,0.14);
+    --shadow-sm: 0 4px 12px rgba(18,51,43,0.08);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 12% 6%, rgba(173,138,69,0.10), transparent 42%),
+      radial-gradient(circle at 90% 94%, rgba(18,51,43,0.07), transparent 46%),
+      var(--parchment);
+    font-family:'Cairo', sans-serif;
+    color: var(--ink);
+    min-height:100vh;
+  }
+  .wrap{ max-width: 720px; margin: 0 auto; padding: 22px 16px 70px; }
+  button{ font-family:'Cairo', sans-serif; }
+
+  /* ============ Header / trust identity ============ */
+  header.site-header{ text-align:center; margin-bottom:28px; }
+  .brand-mark{
+    width:64px;height:64px;margin:0 auto 12px;border-radius:50%;
+    background: conic-gradient(from 180deg, var(--gold), var(--gold-light), var(--gold));
+    display:flex;align-items:center;justify-content:center;
+    box-shadow: var(--shadow); overflow:hidden;
+  }
+  .brand-mark img{ width:100%; height:100%; object-fit:cover; border-radius:50%; }
+  .brand-mark span{ font-family:'Amiri',serif; color:var(--ink); font-size:24px; font-weight:700; }
+  header.site-header h1{ font-family:'Amiri', serif; font-size:23px; margin:0 0 4px; color:var(--ink); line-height:1.4; padding:0 12px; }
+  header.site-header p.tagline{ margin:0 0 10px; color:var(--ink-2); font-size:13.5px; opacity:.85; }
+  .license-badge{
+    display:inline-flex; align-items:center; gap:6px; background:var(--white);
+    border:1px solid var(--line); border-radius:30px; padding:5px 14px;
+    font-size:11.5px; color:var(--ink-2); box-shadow: var(--shadow-sm);
+  }
+  .license-badge b{ color:var(--ink); font-weight:700; }
+  .license-badge .dot{ width:6px;height:6px;border-radius:50%;background:var(--ok); }
+
+  /* ============ Donation cards ============ */
+  .cards{ display:grid; gap:14px; }
+  .card{
+    background: var(--white); border:1px solid var(--line); border-radius:var(--radius-lg);
+    padding:18px; box-shadow: var(--shadow); cursor:pointer;
+    transition: transform .15s ease;
+    position:relative; overflow:hidden;
+  }
+  .card:active{ transform: scale(.98); }
+  .card::before{
+    content:''; position:absolute; inset-inline-start:0; top:0; bottom:0; width:5px;
+    background: var(--gold);
+  }
+  .card h3{ font-family:'Amiri', serif; font-size:19px; margin:0 0 4px; }
+  .card p.desc{ margin:0; font-size:13px; color:var(--ink-2); opacity:.8; }
+  .progress-wrap{ margin-top:12px; }
+  .bar{ height:8px; border-radius:6px; background:var(--parchment-2); overflow:hidden; }
+  .bar > div{ height:100%; background: linear-gradient(90deg, var(--gold), var(--rose)); border-radius:6px; }
+  .prog-labels{ display:flex; justify-content:space-between; font-size:11.5px; color:var(--ink-2); margin-top:6px; }
+
+  /* ============ Donation modal (bottom sheet) ============ */
+  .overlay{
+    position:fixed; inset:0; background:rgba(18,51,43,.55); display:none;
+    align-items:flex-end; justify-content:center; z-index:50; backdrop-filter: blur(2px);
+  }
+  .overlay.show{ display:flex; }
+  .sheet{
+    background:var(--parchment); width:100%; max-width:720px; border-radius:20px 20px 0 0;
+    padding:22px 18px 28px; box-shadow: 0 -10px 30px rgba(0,0,0,.2);
+    max-height:88vh; overflow-y:auto;
+    animation: rise .25s ease;
+  }
+  @keyframes rise{ from{ transform:translateY(24px); opacity:0;} to{ transform:translateY(0); opacity:1;} }
+  .sheet h2{ font-family:'Amiri', serif; font-size:21px; margin:0 0 14px; }
+  label{ font-size:13px; color:var(--ink-2); display:block; margin-bottom:6px; }
+  input[type=number], input[type=text]{
+    width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--line);
+    background:var(--white); font-size:16px; font-family:'Cairo',sans-serif; color:var(--ink);
+    margin-bottom:14px;
+  }
+  input[type=file]{ margin-bottom:14px; font-size:12px; width:100%; }
+  .btn{
+    width:100%; padding:13px; border-radius:var(--radius-md); border:none;
+    font-weight:700; font-size:15px; cursor:pointer;
+  }
+  .btn-primary{ background: var(--ink); color:var(--white); }
+  .btn-primary:active{ background: var(--ink-2); }
+  .btn-ghost{ background:transparent; color:var(--ink-2); margin-top:10px; }
+
+  .qr-box{ text-align:center; }
+  .qr-box #qrcode{ display:flex; justify-content:center; margin:14px 0; min-height:170px; align-items:center; }
+  .amount-pill{
+    display:inline-block; background:var(--ink); color:var(--white); font-weight:800;
+    font-size:22px; padding:8px 20px; border-radius:30px; letter-spacing:.5px; margin-bottom:12px;
+  }
+  .iban-row{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    background:var(--white); border:1px solid var(--line); border-radius:10px; padding:10px 12px;
+    font-family:monospace; font-size:13px; margin-bottom:16px; direction:ltr;
+  }
+  .copy-btn{ border:none; background:var(--gold-light); color:var(--ink); border-radius:8px; padding:6px 10px; font-size:12px; cursor:pointer; font-weight:700; }
+  .steps{ text-align:right; font-size:13px; color:var(--ink-2); line-height:1.9; margin-bottom:16px; }
+
+  .footer-link{ text-align:center; margin-top:30px; }
+  .footer-link a{ color: var(--ink-2); font-size:12px; text-decoration:underline; opacity:.7; cursor:pointer; }
+
+  /* ============ Admin ============ */
+  .admin-wrap{ display:none; }
+  .admin-wrap.show{ display:block; }
+  .pin-gate{ text-align:center; padding-top:60px; }
+  .pin-gate input{ max-width:180px; text-align:center; letter-spacing:6px; font-size:20px; margin:14px auto; }
+  .pin-gate .btn{ max-width:180px; margin:0 auto; }
+  .admin-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .admin-header h1{ font-size:19px; font-family:'Amiri',serif; margin:0; }
+  .tab-row{ display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  .tab-row button{
+    flex:1; min-width:110px; padding:10px; border-radius:10px; border:1px solid var(--line); background:var(--white);
+    font-weight:700; font-size:12.5px; cursor:pointer; color:var(--ink-2);
+  }
+  .tab-row button.active{ background:var(--ink); color:var(--white); border-color:var(--ink); }
+  .pledge{
+    background:var(--white); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:10px;
+    display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;
+  }
+  .pledge .thumb{ width:52px;height:52px;border-radius:8px;flex-shrink:0; }
+  .pledge .thumb-img{ object-fit:cover; border:1px solid var(--line); }
+  .pledge .thumb-empty{ background:var(--parchment-2); display:flex; align-items:center; justify-content:center; font-size:10px; color:var(--ink-2); text-align:center; }
+  .pledge .info{ flex:1; min-width:120px; }
+  .pledge .info b{ display:block; font-size:15px; }
+  .pledge .info span{ font-size:12px; color:var(--ink-2); }
+  .pledge .amt{ font-weight:800; font-family:monospace; direction:ltr; }
+  .pledge .actions{ display:flex; gap:6px; }
+  .pledge .actions button{ border:none; border-radius:8px; padding:8px 10px; font-size:12px; font-weight:700; cursor:pointer; }
+  .confirm-btn{ background:var(--ok); color:#fff; }
+  .cancel-btn{ background:#eee; color:var(--ink-2); }
+  .empty{ text-align:center; color:var(--ink-2); font-size:13px; padding:30px 0; opacity:.7; }
+  .panel{ background:var(--white); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:18px; }
+  .panel h3{ font-family:'Amiri',serif; margin:0 0 12px; font-size:17px; }
+  .panel-sub{ font-size:12px; color:var(--ink-2); margin:-8px 0 14px; opacity:.8; }
+  .totals-row{ display:flex; gap:10px; margin-bottom:18px; }
+  .total-card{ flex:1; background:var(--white); border:1px solid var(--line); border-radius:12px; padding:14px; text-align:center; }
+  .total-card b{ display:block; font-size:20px; font-family:monospace; }
+  .total-card span{ font-size:11.5px; color:var(--ink-2); }
+  .logo-preview{ width:64px;height:64px;border-radius:50%;object-fit:cover;border:1px solid var(--line); margin-bottom:10px; }
+
+  /* ============ Toast ============ */
+  .toast{
+    position:fixed; top:16px; left:50%; transform:translateX(-50%) translateY(-20px);
+    background:var(--ink); color:var(--white); padding:12px 20px; border-radius:30px;
+    font-size:13px; font-weight:700; z-index:100; opacity:0; pointer-events:none;
+    transition: all .25s ease; box-shadow: var(--shadow); max-width:90%; text-align:center;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+  .toast.toast-error{ background:var(--rose); }
+  .toast.toast-success{ background:var(--ok); }
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+
+<!-- ============ Public donation page ============ -->
+<div class="wrap" id="publicView">
+  <header class="site-header" id="siteHeader"></header>
+  <div class="cards" id="cardsContainer"></div>
+  <div class="footer-link"><a id="linkToAdmin">لوحة الإدارة</a></div>
+</div>
+
+<!-- ============ Donation modal ============ -->
+<div class="overlay" id="donateOverlay">
+  <div class="sheet">
+    <div id="amountStep">
+      <h2 id="modalTitle">التبرع</h2>
+      <label>المبلغ الذي ترغب بالتبرع به (د.ب)</label>
+      <input type="number" id="donateAmount" min="1" step="0.5" placeholder="مثال: 10">
+      <button class="btn btn-primary" id="btnGeneratePledge">متابعة</button>
+      <button class="btn btn-ghost" id="btnCloseModal1">إلغاء</button>
+    </div>
+    <div id="qrStep" class="qr-box" style="display:none;">
+      <h2>حوّل المبلغ</h2>
+      <div class="amount-pill" id="pillAmount"></div>
+      <div id="qrcode"></div>
+      <div class="iban-row">
+        <span id="ibanText">—</span>
+        <button class="copy-btn" id="btnCopyIban">نسخ</button>
+      </div>
+      <div class="steps">
+        ١. افتح تطبيق البنك الخاص بك<br>
+        ٢. امسح الباركود أعلاه أو استخدم رقم الآيبان<br>
+        ٣. حوّل المبلغ <b id="stepsAmount"></b> د.ب<br>
+        ٤. ارفع صورة إيصال التحويل بالأسفل وأرسلها للمراجعة
+      </div>
+      <label>صورة إيصال التحويل (تساعد الإدارة تراجع تبرعك بسرعة)</label>
+      <input type="file" id="receiptFile" accept="image/*">
+      <button class="btn btn-primary" id="btnSubmitPledge">إرسال للمراجعة</button>
+      <button class="btn btn-ghost" id="btnCloseModal2">إلغاء</button>
+    </div>
+    <div id="doneStep" style="display:none; text-align:center;">
+      <h2>وصلنا تبرعك 🤍</h2>
+      <p style="color:var(--ink-2); font-size:14px; line-height:1.8;">تم تسجيل تبرعكم بانتظار مراجعة الإدارة وتأكيد وصول المبلغ. جزاكم الله خيراً</p>
+      <button class="btn btn-primary" id="btnCloseModal3">تم</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Admin ============ -->
+<div class="wrap admin-wrap" id="adminView">
+  <div class="pin-gate" id="pinGate">
+    <div class="brand-mark"><span>ﷲ</span></div>
+    <h1 style="font-size:20px; font-family:'Amiri',serif;">دخول الإدارة</h1>
+    <input type="text" id="pinInput" placeholder="••••" maxlength="6">
+    <div class="btn btn-primary" id="btnCheckPin">دخول</div>
+    <button class="btn btn-ghost" id="btnBackFromPin">رجوع</button>
+  </div>
+
+  <div id="adminPanel" style="display:none;">
+    <div class="admin-header"><h1>لوحة الإدارة</h1></div>
+
+    <div class="totals-row" id="totalsRow"></div>
+
+    <div class="tab-row">
+      <button class="active" id="tabPending">بانتظار التأكيد</button>
+      <button id="tabConfirmed">مؤكدة</button>
+      <button id="tabProjects">الفئات والمشاريع</button>
+      <button id="tabIdentity">بيانات المركز</button>
+      <button id="tabPayment">وسيلة الدفع</button>
+    </div>
+
+    <div id="tabContent"></div>
+
+    <div class="footer-link"><a id="linkBackPublic">رجوع للصفحة العامة</a></div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   CONFIG & STATE
+   ========================================================= */
+const ADMIN_PIN = "1234";
+
+const DEFAULT_IDENTITY = {
+  centerName: 'مركز الشيخان وشريفة الفارسي لتحفيظ القرآن الكريم',
+  logo: '',
+  licenseNumber: ''
+};
+const DEFAULT_PAYMENT = { iban: '', barcodeImage: '' };
+const DEFAULT_CATEGORIES = [
+  { id:'sponsor_student', name:'كفالة طالبة', desc:'دعم تعليم طالبة في المركز', hasTarget:false, target:0 },
+  { id:'sponsor_teacher', name:'كفالة معلمة', desc:'دعم معلمة تحفيظ في المركز', hasTarget:false, target:0 },
+  { id:'maintenance',     name:'صيانة المركز', desc:'صيانة المرافق والتجهيزات', hasTarget:false, target:0 },
+  { id:'general',         name:'صدقة عامة',   desc:'تبرع عام يوجَّه حسب الحاجة', hasTarget:false, target:0 },
+  { id:'proj_intensive',  name:'دعم حلقة مكثف', desc:'تمويل دورة تحفيظ مكثفة', hasTarget:true,  target:100 },
+];
+
+let state = {
+  identity: { ...DEFAULT_IDENTITY },
+  payment: { ...DEFAULT_PAYMENT },
+  categories: [],
+  pledges: [],
+  activeCategory: null,
+  pendingDraft: null,   // { catId, catName, baseAmount } while donor is mid-flow
+  adminTab: 'pending',
+};
+
+/* =========================================================
+   STORAGE LAYER
+   ========================================================= */
+/* =========================================================
+   FIREBASE (shared, cross-device data — replaces window.storage)
+   ========================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyBdovPshzJ0J4aB0Zr_gfeTmHUDylg0jrQ",
+  authDomain: "quran-center-donations.firebaseapp.com",
+  projectId: "quran-center-donations",
+  storageBucket: "quran-center-donations.firebasestorage.app",
+  messagingSenderId: "544221503396",
+  appId: "1:544221503396:web:eefb00b728cf0a0ab5ab31"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const Store = {
+  async load(key, fallback){
+    try{
+      const snap = await db.collection('kv').doc(key).get();
+      return snap.exists ? JSON.parse(snap.data().value) : fallback;
+    }catch(e){ console.error('Store.load failed for', key, e); return fallback; }
+  },
+  async save(key, value){
+    try{ await db.collection('kv').doc(key).set({ value: JSON.stringify(value) }); }
+    catch(e){ console.error('Store.save failed for', key, e); showToast('تعذّر الحفظ — تحقق من الاتصال', 'error'); }
+  }
+};
+
+async function loadAll(){
+  state.identity  = await Store.load('identity', { ...DEFAULT_IDENTITY });
+  state.payment   = await Store.load('payment', { ...DEFAULT_PAYMENT });
+  state.categories = await Store.load('categories', DEFAULT_CATEGORIES);
+  state.pledges   = await Store.load('pledges', []);
+  renderHeader();
+  renderCards();
+}
+
+/* =========================================================
+   UI HELPERS
+   ========================================================= */
+function showToast(msg, type){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' toast-'+type : '');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(()=> t.classList.remove('show'), 2600);
+}
+function el(id){ return document.getElementById(id); }
+function money(n){ return Number(n).toFixed(2); }
+
+/* =========================================================
+   PUBLIC VIEW: header + category cards
+   ========================================================= */
+function renderHeader(){
+  const { centerName, logo, licenseNumber } = state.identity;
+  el('siteHeader').innerHTML = `
+    <div class="brand-mark">${logo ? `<img src="${logo}" alt="شعار المركز">` : `<span>ﷲ</span>`}</div>
+    <h1>${centerName || DEFAULT_IDENTITY.centerName}</h1>
+    <p class="tagline">بوابة التبرعات</p>
+    ${licenseNumber ? `<div class="license-badge"><span class="dot"></span> جهة خيرية مرخّصة — رقم الترخيص <b>${licenseNumber}</b></div>` : ''}
+  `;
+}
+
+function confirmedTotal(catId){
+  return state.pledges
+    .filter(p => p.catId === catId && p.status === 'confirmed')
+    .reduce((sum, p) => sum + p.amount, 0);
+}
+
+function renderCards(){
+  const container = el('cardsContainer');
+  container.innerHTML = state.categories.map(c => {
+    let progressHtml = '';
+    if(c.hasTarget){
+      const collected = confirmedTotal(c.id);
+      const pct = Math.min(100, (collected / c.target) * 100);
+      const remaining = Math.max(0, c.target - collected);
+      progressHtml = `
+        <div class="progress-wrap">
+          <div class="bar"><div style="width:${pct}%;"></div></div>
+          <div class="prog-labels">
+            <span>تم جمع ${money(collected)} د.ب</span>
+            <span>متبقي ${money(remaining)} د.ب</span>
+          </div>
+        </div>`;
+    }
+    return `<div class="card" data-cat="${c.id}">
+      <h3>${c.name}</h3>
+      <p class="desc">${c.desc}</p>
+      ${progressHtml}
+    </div>`;
+  }).join('');
+
+  container.querySelectorAll('.card').forEach(cardEl=>{
+    cardEl.addEventListener('click', ()=> openDonateModal(cardEl.dataset.cat));
+  });
+}
+
+/* =========================================================
+   DONATION MODAL FLOW
+   ========================================================= */
+function openDonateModal(catId){
+  state.activeCategory = state.categories.find(c => c.id === catId);
+  el('modalTitle').textContent = state.activeCategory.name;
+  el('donateAmount').value = '';
+  el('amountStep').style.display = 'block';
+  el('qrStep').style.display = 'none';
+  el('doneStep').style.display = 'none';
+  el('donateOverlay').classList.add('show');
+}
+
+function closeDonateModal(){
+  el('donateOverlay').classList.remove('show');
+  el('qrcode').innerHTML = '';
+  state.pendingDraft = null;
+}
+
+function goToPaymentStep(){
+  const base = parseFloat(el('donateAmount').value);
+  if(!base || base <= 0){ showToast('الرجاء إدخال مبلغ صحيح', 'error'); return; }
+  if(!state.payment.iban && !state.payment.barcodeImage){
+    showToast('لم يتم إعداد وسيلة الدفع بعد من قبل الإدارة', 'error');
+    return;
+  }
+  state.pendingDraft = {
+    catId: state.activeCategory.id,
+    catName: state.activeCategory.name,
+    baseAmount: base
+  };
+
+  el('pillAmount').textContent = money(base) + ' د.ب';
+  el('stepsAmount').textContent = money(base);
+  el('ibanText').textContent = state.payment.iban || '—';
+  el('receiptFile').value = '';
+
+  const qrEl = el('qrcode');
+  if(state.payment.barcodeImage){
+    qrEl.innerHTML = `<img src="${state.payment.barcodeImage}" style="width:170px;height:170px;object-fit:contain;border-radius:8px;">`;
+  } else if(state.payment.iban){
+    const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=170x170&data=' + encodeURIComponent(state.payment.iban);
+    qrEl.innerHTML = `<img src="${qrUrl}" width="170" height="170" alt="QR" style="border-radius:8px;">`;
+  }
+
+  el('amountStep').style.display = 'none';
+  el('qrStep').style.display = 'block';
+}
+
+async function submitPledge(){
+  if(!state.pendingDraft) return;
+  const fileInput = el('receiptFile');
+
+  const finalize = async (receiptImage)=>{
+    state.pledges.push({
+      id: Date.now().toString(36),
+      catId: state.pendingDraft.catId,
+      catName: state.pendingDraft.catName,
+      baseAmount: state.pendingDraft.baseAmount,
+      amount: state.pendingDraft.baseAmount,
+      receiptImage: receiptImage || '',
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    });
+    await Store.save('pledges', state.pledges);
+    el('qrStep').style.display = 'none';
+    el('doneStep').style.display = 'block';
+    renderCards();
+  };
+
+  if(fileInput.files && fileInput.files[0]){
+    const reader = new FileReader();
+    reader.onload = (e) => finalize(e.target.result);
+    reader.readAsDataURL(fileInput.files[0]);
+  } else {
+    await finalize('');
+  }
+}
+
+function copyIban(){
+  navigator.clipboard.writeText(state.payment.iban || '');
+  const btn = el('btnCopyIban');
+  const old = btn.textContent;
+  btn.textContent = 'تم!';
+  setTimeout(()=> btn.textContent = old, 1200);
+}
+
+/* =========================================================
+   ADMIN: navigation
+   ========================================================= */
+function showAdminGate(){
+  el('publicView').style.display = 'none';
+  el('adminView').classList.add('show');
+  el('pinGate').style.display = 'block';
+  el('adminPanel').style.display = 'none';
+  el('pinInput').value = '';
+}
+function showPublicView(){
+  el('publicView').style.display = 'block';
+  el('adminView').classList.remove('show');
+  renderHeader();
+  renderCards();
+}
+function checkPin(){
+  if(el('pinInput').value === ADMIN_PIN){
+    el('pinGate').style.display = 'none';
+    el('adminPanel').style.display = 'block';
+    state.adminTab = 'pending';
+    renderAdmin();
+  } else {
+    showToast('الرمز غير صحيح', 'error');
+  }
+}
+function setAdminTab(tab){
+  state.adminTab = tab;
+  ['tabPending','tabConfirmed','tabProjects','tabIdentity','tabPayment'].forEach(id => el(id).classList.remove('active'));
+  const tabIdMap = { pending:'tabPending', confirmed:'tabConfirmed', projects:'tabProjects', identity:'tabIdentity', payment:'tabPayment' };
+  el(tabIdMap[tab]).classList.add('active');
+  renderAdmin();
+}
+
+/* =========================================================
+   ADMIN: rendering per tab
+   ========================================================= */
+function renderAdmin(){
+  const totalConfirmed = state.pledges.filter(p=>p.status==='confirmed').reduce((s,p)=>s+p.amount,0);
+  const totalPending   = state.pledges.filter(p=>p.status==='pending').reduce((s,p)=>s+p.amount,0);
+  el('totalsRow').innerHTML = `
+    <div class="total-card"><b>${money(totalConfirmed)}</b><span>إجمالي مؤكد (د.ب)</span></div>
+    <div class="total-card"><b>${money(totalPending)}</b><span>بانتظار التأكيد (د.ب)</span></div>
+  `;
+
+  const content = el('tabContent');
+  if(state.adminTab === 'identity') return renderIdentityTab(content);
+  if(state.adminTab === 'payment')  return renderPaymentTab(content);
+  if(state.adminTab === 'projects') return renderProjectsTab(content);
+  renderPledgesTab(content, state.adminTab); // 'pending' | 'confirmed'
+}
+
+function renderIdentityTab(content){
+  const { centerName, logo, licenseNumber } = state.identity;
+  content.innerHTML = `
+    <div class="panel">
+      <h3>بيانات المركز الرسمية</h3>
+      <div class="panel-sub">تظهر هذه البيانات في أعلى الصفحة العامة لبناء الثقة مع المتبرعين</div>
+      <label>اسم المركز</label>
+      <input type="text" id="idName" value="${centerName || ''}">
+      <label>شعار المركز</label>
+      ${logo ? `<div><img src="${logo}" class="logo-preview"></div>` : ''}
+      <input type="file" id="idLogo" accept="image/*">
+      <label>رقم ترخيص جمع التبرعات</label>
+      <input type="text" id="idLicense" value="${licenseNumber || ''}" placeholder="مثال: 1234/2024" style="direction:ltr; text-align:right;">
+      <button class="btn btn-primary" id="btnSaveIdentity">حفظ</button>
+    </div>
+  `;
+  el('btnSaveIdentity').addEventListener('click', saveIdentity);
+}
+
+function renderPaymentTab(content){
+  const { iban, barcodeImage } = state.payment;
+  content.innerHTML = `
+    <div class="panel">
+      <h3>وسيلة الدفع</h3>
+      <div class="panel-sub">الآيبان و/أو صورة الباركود الرسمي للمركز — هذا ما يظهر للمتبرعين عند التحويل</div>
+      <label>رقم الآيبان</label>
+      <input type="text" id="payIban" value="${iban || ''}" placeholder="BH.." style="direction:ltr;">
+      <label>صورة الباركود الرسمي (اختياري)</label>
+      ${barcodeImage ? `<div style="margin-bottom:10px;"><img src="${barcodeImage}" style="width:120px;height:120px;object-fit:contain;border:1px solid var(--line);border-radius:8px;"><br><button class="cancel-btn" id="btnRemoveBarcode" style="margin-top:6px;">إزالة الصورة</button></div>` : ''}
+      <input type="file" id="payBarcode" accept="image/*">
+      <button class="btn btn-primary" id="btnSavePayment">حفظ</button>
+    </div>
+  `;
+  el('btnSavePayment').addEventListener('click', savePayment);
+  const rmBtn = document.getElementById('btnRemoveBarcode');
+  if(rmBtn) rmBtn.addEventListener('click', removeBarcodeImage);
+}
+
+function renderProjectsTab(content){
+  content.innerHTML = `
+    <div class="panel">
+      <h3>إضافة فئة / مشروع جديد</h3>
+      <label>الاسم</label>
+      <input type="text" id="newCatName" placeholder="مثال: كفالة يتيم">
+      <label>الوصف</label>
+      <input type="text" id="newCatDesc" placeholder="وصف مختصر">
+      <label>هل له هدف مالي محدد؟ (اتركه 0 إن لم يكن كذلك)</label>
+      <input type="number" id="newCatTarget" placeholder="0">
+      <button class="btn btn-primary" id="btnAddCategory">إضافة</button>
+    </div>
+    ${state.categories.map(c => `
+      <div class="pledge">
+        <div class="info"><b>${c.name}</b><span>${c.desc}${c.hasTarget ? ' — هدف: '+c.target+' د.ب' : ''}</span></div>
+        <div class="actions"><button class="cancel-btn" data-delcat="${c.id}">حذف</button></div>
+      </div>
+    `).join('')}
+  `;
+  el('btnAddCategory').addEventListener('click', addCategory);
+  content.querySelectorAll('[data-delcat]').forEach(btn=>{
+    btn.addEventListener('click', ()=> deleteCategory(btn.dataset.delcat));
+  });
+}
+
+function renderPledgesTab(content, statusFilter){
+  const list = state.pledges
+    .filter(p => p.status === statusFilter)
+    .sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  if(list.length === 0){
+    content.innerHTML = `<div class="empty">لا توجد تبرعات ${statusFilter==='pending' ? 'بانتظار التأكيد' : 'مؤكدة'} حالياً</div>`;
+    return;
+  }
+
+  content.innerHTML = list.map(p => `
+    <div class="pledge">
+      ${p.receiptImage
+        ? `<img src="${p.receiptImage}" class="thumb thumb-img">`
+        : `<div class="thumb thumb-empty">بدون إيصال</div>`}
+      <div class="info">
+        <b>${p.catName}</b>
+        <span>${new Date(p.createdAt).toLocaleString('ar-BH')}</span>
+      </div>
+      <div class="amt">${money(p.amount)}</div>
+      <div class="actions">
+        ${p.status === 'pending' ? `<button class="confirm-btn" data-confirm="${p.id}">تأكيد</button>` : ''}
+        <button class="cancel-btn" data-delpledge="${p.id}">حذف</button>
+      </div>
+    </div>
+  `).join('');
+
+  content.querySelectorAll('[data-confirm]').forEach(btn=>{
+    btn.addEventListener('click', ()=> confirmPledge(btn.dataset.confirm));
+  });
+  content.querySelectorAll('[data-delpledge]').forEach(btn=>{
+    btn.addEventListener('click', ()=> deletePledge(btn.dataset.delpledge));
+  });
+}
+
+/* =========================================================
+   ADMIN: actions
+   ========================================================= */
+async function confirmPledge(id){
+  const p = state.pledges.find(x => x.id === id);
+  if(p){ p.status = 'confirmed'; await Store.save('pledges', state.pledges); showToast('تم التأكيد', 'success'); renderAdmin(); }
+}
+async function deletePledge(id){
+  state.pledges = state.pledges.filter(x => x.id !== id);
+  await Store.save('pledges', state.pledges);
+  renderAdmin();
+}
+async function addCategory(){
+  const name = el('newCatName').value.trim();
+  const desc = el('newCatDesc').value.trim();
+  const target = parseFloat(el('newCatTarget').value) || 0;
+  if(!name){ showToast('الرجاء إدخال اسم الفئة', 'error'); return; }
+  state.categories.push({
+    id: 'cat_' + Date.now().toString(36),
+    name, desc: desc || '—',
+    hasTarget: target > 0, target
+  });
+  await Store.save('categories', state.categories);
+  showToast('تمت الإضافة', 'success');
+  renderAdmin();
+}
+async function deleteCategory(id){
+  state.categories = state.categories.filter(c => c.id !== id);
+  await Store.save('categories', state.categories);
+  showToast('تم الحذف', 'success');
+  renderAdmin();
+}
+
+async function saveIdentity(){
+  state.identity.centerName = el('idName').value.trim() || DEFAULT_IDENTITY.centerName;
+  state.identity.licenseNumber = el('idLicense').value.trim();
+  const fileInput = el('idLogo');
+  if(fileInput.files && fileInput.files[0]){
+    const reader = new FileReader();
+    reader.onload = async (e)=>{
+      state.identity.logo = e.target.result;
+      await Store.save('identity', state.identity);
+      showToast('تم الحفظ', 'success');
+      renderHeader();
+      renderAdmin();
+    };
+    reader.readAsDataURL(fileInput.files[0]);
+  } else {
+    await Store.save('identity', state.identity);
+    showToast('تم الحفظ', 'success');
+    renderHeader();
+    renderAdmin();
+  }
+}
+
+async function savePayment(){
+  state.payment.iban = el('payIban').value.trim();
+  const fileInput = el('payBarcode');
+  if(fileInput.files && fileInput.files[0]){
+    const reader = new FileReader();
+    reader.onload = async (e)=>{
+      state.payment.barcodeImage = e.target.result;
+      await Store.save('payment', state.payment);
+      showToast('تم الحفظ', 'success');
+      renderAdmin();
+    };
+    reader.readAsDataURL(fileInput.files[0]);
+  } else {
+    await Store.save('payment', state.payment);
+    showToast('تم الحفظ', 'success');
+    renderAdmin();
+  }
+}
+async function removeBarcodeImage(){
+  state.payment.barcodeImage = '';
+  await Store.save('payment', state.payment);
+  renderAdmin();
+}
+
+/* =========================================================
+   STATIC EVENT WIRING (elements that always exist in the DOM)
+   ========================================================= */
+el('linkToAdmin').addEventListener('click', showAdminGate);
+el('linkBackPublic').addEventListener('click', showPublicView);
+el('btnBackFromPin').addEventListener('click', showPublicView);
+el('btnCheckPin').addEventListener('click', checkPin);
+el('btnGeneratePledge').addEventListener('click', goToPaymentStep);
+el('btnSubmitPledge').addEventListener('click', submitPledge);
+el('btnCloseModal1').addEventListener('click', closeDonateModal);
+el('btnCloseModal2').addEventListener('click', closeDonateModal);
+el('btnCloseModal3').addEventListener('click', closeDonateModal);
+el('btnCopyIban').addEventListener('click', copyIban);
+el('tabPending').addEventListener('click', ()=> setAdminTab('pending'));
+el('tabConfirmed').addEventListener('click', ()=> setAdminTab('confirmed'));
+el('tabProjects').addEventListener('click', ()=> setAdminTab('projects'));
+el('tabIdentity').addEventListener('click', ()=> setAdminTab('identity'));
+el('tabPayment').addEventListener('click', ()=> setAdminTab('payment'));
+
+/* =========================================================
+   BOOT
+   ========================================================= */
+loadAll();
+</script>
+</body>
+</html>
