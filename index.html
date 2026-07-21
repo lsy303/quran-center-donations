@@ -17,23 +17,23 @@
      "verified" badge, and completed-goal marker throughout.
      ========================================================= */
   :root{
-    --ink:#12332B;
-    --ink-2:#1E4A3E;
+    --ink:#3B3226;
+    --ink-2:#4A4030;
     --parchment:#FBF7EE;
     --parchment-2:#F3EBD9;
     --gold:#AD8A45;
     --gold-light:#D9C08E;
     --gold-dark:#8C6C30;
-    --rose:#8C3B3B;
-    --blue:#2F5D73;
+    --rose:#7A2E2E;
+    --blue:#6B5B3E;
     --line:#E1D6BA;
-    --ok:#3E7A57;
+    --ok:#5C7A4A;
     --white:#fff;
     --radius-lg:18px;
     --radius-md:12px;
     --radius-sm:8px;
-    --shadow: 0 10px 30px rgba(18,51,43,0.14);
-    --shadow-sm: 0 4px 12px rgba(18,51,43,0.08);
+    --shadow: 0 10px 30px rgba(59,50,38,0.14);
+    --shadow-sm: 0 4px 12px rgba(59,50,38,0.08);
   }
   *{box-sizing:border-box;}
   html{ scroll-behavior:smooth; }
@@ -41,7 +41,7 @@
     margin:0;
     background:
       radial-gradient(circle at 12% 6%, rgba(173,138,69,0.10), transparent 42%),
-      radial-gradient(circle at 90% 94%, rgba(18,51,43,0.07), transparent 46%),
+      radial-gradient(circle at 90% 94%, rgba(122,46,46,0.06), transparent 46%),
       var(--parchment);
     font-family:'Cairo', sans-serif;
     color: var(--ink);
@@ -84,18 +84,17 @@
   .license-badge b{ color:var(--ink); font-weight:700; }
   .license-badge svg{ color:var(--ok); }
 
-  /* ============ Hadith marquee ============ */
+  /* ============ Hadith marquee (full-bleed, top of page) ============ */
   .marquee-band{
-    background: var(--ink); border-radius:30px; overflow:hidden; margin-bottom:20px;
-    box-shadow: var(--shadow-sm); position:relative;
+    background: var(--ink); overflow:hidden; position:relative; width:100%;
   }
   .marquee-band::before, .marquee-band::after{
-    content:''; position:absolute; top:0; bottom:0; width:24px; z-index:2; pointer-events:none;
+    content:''; position:absolute; top:0; bottom:0; width:32px; z-index:2; pointer-events:none;
   }
   .marquee-band::before{ inset-inline-start:0; background:linear-gradient(90deg, var(--ink), transparent); }
   .marquee-band::after{ inset-inline-end:0; background:linear-gradient(270deg, var(--ink), transparent); }
   .marquee-track{
-    display:flex; width:max-content; white-space:nowrap; padding:11px 0;
+    display:flex; width:max-content; white-space:nowrap; padding:10px 0;
     animation: marquee-scroll 38s linear infinite;
   }
   .marquee-track span{ color:var(--gold-light); font-size:12.5px; padding:0 28px; display:inline-flex; align-items:center; gap:8px; }
@@ -103,6 +102,13 @@
   .marquee-track span::after{ content:'٭'; color:var(--gold-dark); margin-inline-start:28px; }
   @keyframes marquee-scroll{ from{ transform:translateX(0); } to{ transform:translateX(-50%); } }
   @media (prefers-reduced-motion: reduce){ .marquee-track{ animation:none; overflow-x:auto; } }
+
+  /* ============ Hero mus'haf illustration ============ */
+  .hero-mushaf{
+    display:flex; align-items:center; justify-content:center; margin:6px 0 24px;
+    height:150px; position:relative;
+  }
+  .hero-mushaf svg{ height:100%; width:auto; filter: drop-shadow(0 8px 16px rgba(59,50,38,0.18)); }
 
   /* ============ Home layout: spotlight + side rail ============ */
   .home-layout{ display:flex; flex-direction:column; gap:16px; }
@@ -340,14 +346,15 @@
 <body>
 <div class="toast" id="toast"></div>
 <div class="lightbox" id="lightbox"><img id="lightboxImg" src=""></div>
-
 <!-- ============ Public donation page ============ -->
+<div class="marquee-band">
+  <div class="marquee-track" id="marqueeTrack"></div>
+</div>
+
 <div class="wrap" id="publicView">
   <header class="site-header" id="siteHeader"></header>
 
-  <div class="marquee-band">
-    <div class="marquee-track" id="marqueeTrack"></div>
-  </div>
+  <div class="hero-mushaf" id="heroMushaf"></div>
 
   <div class="home-layout">
     <div id="featuredSpotlight"></div>
@@ -493,6 +500,7 @@ let state = {
   payment: { ...DEFAULT_PAYMENT },
   categories: [],
   pledges: [],
+  ticker: [],
   featuredCatId: null,
   activeCategory: null,
   pendingDraft: null,
@@ -534,15 +542,45 @@ const Store = {
   }
 };
 
+const DEFAULT_TICKER = [
+  { text: 'الصدقة تُطفئ الخطيئة كما يُطفئ الماء النار', src: 'رواه الترمذي' },
+  { text: 'ما نقصت صدقة من مال', src: 'رواه مسلم' },
+  { text: 'كل معروف صدقة', src: 'متفق عليه' },
+  { text: 'اليد العليا خير من اليد السفلى', src: 'متفق عليه' },
+  { text: 'أفضل الصدقة جهد المُقِلّ', src: 'رواه أبو داود' },
+];
+
+const HERO_MUSHAF_SVG = `
+<svg viewBox="0 0 220 150" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="coverGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7A2E2E"/>
+      <stop offset="100%" stop-color="#5C2222"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="110" cy="128" rx="88" ry="10" fill="#3B3226" opacity="0.12"/>
+  <g>
+    <path d="M20 105 L108 118 L108 40 L20 28 Z" fill="#F3EBD9" stroke="#AD8A45" stroke-width="1.5"/>
+    <path d="M200 105 L112 118 L112 40 L200 28 Z" fill="#FBF7EE" stroke="#AD8A45" stroke-width="1.5"/>
+    <path d="M108 40 L112 40 L112 118 L108 118 Z" fill="#D9C08E"/>
+    <path d="M30 50 L98 60 M30 62 L98 71 M30 74 L98 82" stroke="#C9B98F" stroke-width="1.2" opacity="0.7"/>
+    <path d="M190 50 L122 60 M190 62 L122 71 M190 74 L122 82" stroke="#C9B98F" stroke-width="1.2" opacity="0.7"/>
+    <path d="M20 105 L108 118 L112 118 L200 105 L200 111 L112 124 L108 124 L20 111 Z" fill="url(#coverGrad)"/>
+    <circle cx="110" cy="112" r="4" fill="#AD8A45"/>
+  </g>
+</svg>`;
+
 async function loadAll(){
   state.identity  = await Store.load('identity', { ...DEFAULT_IDENTITY });
   state.payment   = await Store.load('payment', { ...DEFAULT_PAYMENT });
   state.categories = await Store.load('categories', DEFAULT_CATEGORIES);
   state.pledges   = await Store.load('pledges', []);
+  state.ticker    = await Store.load('ticker', DEFAULT_TICKER);
   const featured  = await Store.load('featured', { catId: null });
   state.featuredCatId = featured.catId;
   renderHeader();
   renderAdminSeals();
+  renderHero();
   renderMarquee();
   renderSpotlight();
   renderRail();
@@ -578,8 +616,13 @@ function renderHeader(){
   `;
 }
 
+function renderHero(){
+  el('heroMushaf').innerHTML = HERO_MUSHAF_SVG;
+}
+
 function renderMarquee(){
-  const items = HADITHS.map(h => `<span>«${h.text}» <b>${h.src}</b></span>`).join('');
+  const phrases = (state.ticker && state.ticker.length) ? state.ticker : DEFAULT_TICKER;
+  const items = phrases.map(h => `<span>«${h.text}» <b>${h.src}</b></span>`).join('');
   el('marqueeTrack').innerHTML = items + items; // duplicated for seamless loop
 }
 
@@ -777,6 +820,7 @@ function renderTabLabels(){
   el('settingsMenu').innerHTML = `
     <button data-adm="identity">${Icon.building} بيانات المركز</button>
     <button data-adm="payment">${Icon.card} وسيلة الدفع</button>
+    <button data-adm="ticker">${Icon.folder} الشريط المتحرك</button>
   `;
   el('settingsMenu').querySelectorAll('[data-adm]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
@@ -812,6 +856,7 @@ function renderAdmin(){
   const content = el('tabContent');
   if(state.adminTab === 'identity') return renderIdentityTab(content);
   if(state.adminTab === 'payment')  return renderPaymentTab(content);
+  if(state.adminTab === 'ticker')   return renderTickerTab(content);
   if(state.adminTab === 'projects') return renderProjectsTab(content);
   renderPledgesTab(content, state.adminTab); // 'pending' | 'confirmed' | 'archived'
 }
@@ -870,6 +915,31 @@ function renderPaymentTab(content){
   el('btnSavePayment').addEventListener('click', savePayment);
   const rmBtn = document.getElementById('btnRemoveBarcode');
   if(rmBtn) rmBtn.addEventListener('click', removeBarcodeImage);
+}
+
+function renderTickerTab(content){
+  const phrases = (state.ticker && state.ticker.length) ? state.ticker : DEFAULT_TICKER;
+  content.innerHTML = `
+    <div class="panel">
+      <h3>${Icon.folder} إضافة عبارة للشريط المتحرك</h3>
+      <div class="panel-sub">أحاديث أو عبارات عن فضل الصدقة تظهر بشريط متحرك أعلى الصفحة الرئيسية</div>
+      <label>نص الحديث / العبارة</label>
+      <input type="text" id="newTickerText" placeholder="مثال: الصدقة تُطفئ الخطيئة كما يُطفئ الماء النار">
+      <label>المصدر (اختياري)</label>
+      <input type="text" id="newTickerSrc" placeholder="مثال: رواه الترمذي">
+      <button class="btn btn-primary" id="btnAddTicker">${Icon.check} إضافة</button>
+    </div>
+    ${phrases.map((h, i) => `
+      <div class="pledge">
+        <div class="info"><b>${h.text}</b><span>${h.src || '—'}</span></div>
+        <div class="actions"><button class="cancel-btn" data-delticker="${i}">${Icon.trash} حذف</button></div>
+      </div>
+    `).join('')}
+  `;
+  el('btnAddTicker').addEventListener('click', addTickerPhrase);
+  content.querySelectorAll('[data-delticker]').forEach(btn=>{
+    btn.addEventListener('click', ()=> deleteTickerPhrase(parseInt(btn.dataset.delticker, 10)));
+  });
 }
 
 function renderProjectsTab(content){
@@ -1084,6 +1154,26 @@ async function savePayment(){
 async function removeBarcodeImage(){
   state.payment.barcodeImage = '';
   await Store.save('payment', state.payment);
+  renderAdmin();
+}
+async function addTickerPhrase(){
+  const text = el('newTickerText').value.trim();
+  const src = el('newTickerSrc').value.trim();
+  if(!text){ showToast('الرجاء إدخال نص العبارة', 'error'); return; }
+  if(!state.ticker || !state.ticker.length) state.ticker = [...DEFAULT_TICKER];
+  state.ticker.push({ text, src });
+  await Store.save('ticker', state.ticker);
+  showToast('تمت الإضافة', 'success');
+  renderMarquee();
+  renderAdmin();
+}
+async function deleteTickerPhrase(index){
+  const phrases = (state.ticker && state.ticker.length) ? state.ticker : [...DEFAULT_TICKER];
+  phrases.splice(index, 1);
+  state.ticker = phrases;
+  await Store.save('ticker', state.ticker);
+  showToast('تم الحذف', 'success');
+  renderMarquee();
   renderAdmin();
 }
 
