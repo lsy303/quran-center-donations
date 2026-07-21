@@ -499,7 +499,7 @@ function catIcon(cat){
 /* =========================================================
    CONFIG & STATE
    ========================================================= */
-const ADMIN_PIN = "QC-Adm2026!";
+const DEFAULT_ADMIN_PIN = "1234";
 
 const DEFAULT_IDENTITY = {
   centerName: 'مركز الشيخان وشريفة الفارسي لتحفيظ القرآن الكريم',
@@ -525,6 +525,7 @@ let state = {
   activeCategory: null,
   pendingDraft: null,
   adminTab: 'pending',
+  adminPin: DEFAULT_ADMIN_PIN,
 };
 
 const HADITHS = [
@@ -578,6 +579,7 @@ async function loadAll(){
   state.ticker    = await Store.load('ticker', DEFAULT_TICKER);
   const featured  = await Store.load('featured', { catId: null });
   state.featuredCatId = featured.catId;
+  state.adminPin = await Store.load('adminPin', DEFAULT_ADMIN_PIN);
   renderHeader();
   renderAdminSeals();
   renderMarquee();
@@ -797,7 +799,7 @@ function showPublicView(){
   renderRail();
 }
 function checkPin(){
-  if(el('pinInput').value === ADMIN_PIN){
+  if(el('pinInput').value === state.adminPin){
     el('pinGate').style.display = 'none';
     el('adminPanel').style.display = 'block';
     state.adminTab = 'projects';
@@ -822,6 +824,7 @@ function renderTabLabels(){
     <button data-adm="identity">${Icon.building} بيانات المركز</button>
     <button data-adm="payment">${Icon.card} وسيلة الدفع</button>
     <button data-adm="ticker">${Icon.folder} الشريط المتحرك</button>
+    <button data-adm="security">${Icon.shield} تغيير رمز الدخول</button>
   `;
   el('settingsMenu').querySelectorAll('[data-adm]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
@@ -858,6 +861,7 @@ function renderAdmin(){
   if(state.adminTab === 'identity') return renderIdentityTab(content);
   if(state.adminTab === 'payment')  return renderPaymentTab(content);
   if(state.adminTab === 'ticker')   return renderTickerTab(content);
+  if(state.adminTab === 'security') return renderSecurityTab(content);
   if(state.adminTab === 'projects') return renderProjectsTab(content);
   renderPledgesTab(content, state.adminTab); // 'pending' | 'confirmed' | 'archived'
 }
@@ -941,6 +945,23 @@ function renderTickerTab(content){
   content.querySelectorAll('[data-delticker]').forEach(btn=>{
     btn.addEventListener('click', ()=> deleteTickerPhrase(parseInt(btn.dataset.delticker, 10)));
   });
+}
+
+function renderSecurityTab(content){
+  content.innerHTML = `
+    <div class="panel">
+      <h3>${Icon.shield} تغيير رمز الدخول</h3>
+      <div class="panel-sub">رمز الدخول (PIN) الحالي مطلوب لتأكيد التغيير. هذا الرمز هو ما يُستخدم لفتح لوحة الإدارة</div>
+      <label>الرمز الحالي</label>
+      <input type="text" id="secCurrentPin" placeholder="أدخل الرمز الحالي">
+      <label>الرمز الجديد</label>
+      <input type="text" id="secNewPin" placeholder="أدخل الرمز الجديد">
+      <label>تأكيد الرمز الجديد</label>
+      <input type="text" id="secConfirmPin" placeholder="أعد كتابة الرمز الجديد">
+      <button class="btn btn-primary" id="btnSavePin">${Icon.check} حفظ الرمز الجديد</button>
+    </div>
+  `;
+  el('btnSavePin').addEventListener('click', savePin);
 }
 
 function renderProjectsTab(content){
@@ -1155,6 +1176,18 @@ async function savePayment(){
 async function removeBarcodeImage(){
   state.payment.barcodeImage = '';
   await Store.save('payment', state.payment);
+  renderAdmin();
+}
+async function savePin(){
+  const current = el('secCurrentPin').value.trim();
+  const next = el('secNewPin').value.trim();
+  const confirm = el('secConfirmPin').value.trim();
+  if(current !== state.adminPin){ showToast('الرمز الحالي غير صحيح', 'error'); return; }
+  if(!next || next.length < 4){ showToast('الرجاء إدخال رمز جديد لا يقل عن 4 خانات', 'error'); return; }
+  if(next !== confirm){ showToast('الرمز الجديد وتأكيده غير متطابقين', 'error'); return; }
+  state.adminPin = next;
+  await Store.save('adminPin', state.adminPin);
+  showToast('تم تغيير رمز الدخول', 'success');
   renderAdmin();
 }
 async function addTickerPhrase(){
