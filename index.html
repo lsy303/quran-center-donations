@@ -119,32 +119,33 @@
   }
 
   .spotlight-card{
-    background: linear-gradient(165deg, var(--ink) 0%, var(--ink-2) 100%);
-    border-radius: var(--radius-lg); padding:24px 20px; color:var(--white);
+    background: linear-gradient(155deg, #C99A3F 0%, #8C6C30 55%, #6B4F1F 100%);
+    border-radius: var(--radius-lg); padding:40px 26px; color:var(--white);
     box-shadow: var(--shadow); position:relative; overflow:hidden; text-align:center; cursor:pointer;
   }
   .spotlight-card::before{
     content:''; position:absolute; inset:0;
-    background: radial-gradient(circle at 85% -10%, rgba(173,138,69,0.35), transparent 55%);
+    background: radial-gradient(circle at 85% -10%, rgba(255,255,255,0.25), transparent 55%);
   }
   .spotlight-eyebrow{
-    display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.12);
-    color:var(--gold-light); font-size:11px; font-weight:700; padding:5px 13px; border-radius:20px;
-    margin-bottom:14px; position:relative;
+    display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.2);
+    color:var(--white); font-size:12px; font-weight:800; padding:7px 16px; border-radius:20px;
+    margin-bottom:18px; position:relative;
   }
   .spotlight-icon{
-    width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,0.1);
-    display:flex;align-items:center;justify-content:center;margin:0 auto 12px; color:var(--gold-light); position:relative;
+    width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,0.18);
+    display:flex;align-items:center;justify-content:center;margin:0 auto 16px; color:var(--white); position:relative;
   }
-  .spotlight-card h2{ font-family:'Amiri',serif; font-size:22px; margin:0 0 6px; position:relative; font-weight:700; }
-  .spotlight-card p{ margin:0 0 16px; font-size:13px; opacity:.85; line-height:1.6; position:relative; max-width:340px; margin-inline:auto; }
-  .spotlight-card .bar{ background:rgba(255,255,255,0.15); }
-  .spotlight-card .bar > div{ background: linear-gradient(90deg, var(--gold-light), var(--gold)); }
-  .spotlight-card .prog-labels{ color:rgba(255,255,255,0.75); position:relative; }
-  .spotlight-card .goal-met{ color:var(--gold-light); justify-content:center; position:relative; }
+  .spotlight-icon svg{ width:30px; height:30px; }
+  .spotlight-card h2{ font-family:'Amiri',serif; font-size:28px; margin:0 0 8px; position:relative; font-weight:700; }
+  .spotlight-card p{ margin:0 0 20px; font-size:14px; opacity:.92; line-height:1.6; position:relative; max-width:340px; margin-inline:auto; }
+  .spotlight-card .bar{ background:rgba(255,255,255,0.25); height:9px; }
+  .spotlight-card .bar > div{ background: var(--white); }
+  .spotlight-card .prog-labels{ color:rgba(255,255,255,0.9); position:relative; font-size:12.5px; }
+  .spotlight-card .goal-met{ color:var(--white); justify-content:center; position:relative; }
   .spotlight-cta{
-    margin-top:16px; display:inline-flex; align-items:center; gap:8px; background:var(--gold);
-    color:var(--ink); font-weight:800; font-size:13.5px; padding:11px 26px; border-radius:30px;
+    margin-top:20px; display:inline-flex; align-items:center; gap:8px; background:var(--ink);
+    color:var(--white); font-weight:800; font-size:15px; padding:13px 32px; border-radius:30px;
     position:relative;
   }
   .spotlight-empty{
@@ -479,7 +480,7 @@ function catIcon(cat){
 /* =========================================================
    CONFIG & STATE
    ========================================================= */
-const ADMIN_PIN = "1234";
+const ADMIN_PIN = "QC-Adm2026!";
 
 const DEFAULT_IDENTITY = {
   centerName: 'مركز الشيخان وشريفة الفارسي لتحفيظ القرآن الكريم',
@@ -553,21 +554,45 @@ const DEFAULT_TICKER = [
 const HERO_MUSHAF_SVG = `
 <svg viewBox="0 0 220 150" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="coverGrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#7A2E2E"/>
+    <linearGradient id="coverGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8A3535"/>
       <stop offset="100%" stop-color="#5C2222"/>
     </linearGradient>
+    <linearGradient id="pagesGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F3EBD9"/>
+      <stop offset="100%" stop-color="#D9C08E"/>
+    </linearGradient>
   </defs>
-  <ellipse cx="110" cy="128" rx="88" ry="10" fill="#3B3226" opacity="0.12"/>
-  <g>
-    <path d="M20 105 L108 118 L108 40 L20 28 Z" fill="#F3EBD9" stroke="#AD8A45" stroke-width="1.5"/>
-    <path d="M200 105 L112 118 L112 40 L200 28 Z" fill="#FBF7EE" stroke="#AD8A45" stroke-width="1.5"/>
-    <path d="M108 40 L112 40 L112 118 L108 118 Z" fill="#D9C08E"/>
-    <path d="M30 50 L98 60 M30 62 L98 71 M30 74 L98 82" stroke="#C9B98F" stroke-width="1.2" opacity="0.7"/>
-    <path d="M190 50 L122 60 M190 62 L122 71 M190 74 L122 82" stroke="#C9B98F" stroke-width="1.2" opacity="0.7"/>
-    <path d="M20 105 L108 118 L112 118 L200 105 L200 111 L112 124 L108 124 L20 111 Z" fill="url(#coverGrad)"/>
-    <circle cx="110" cy="112" r="4" fill="#AD8A45"/>
+  <ellipse cx="110" cy="132" rx="78" ry="9" fill="#3B3226" opacity="0.14"/>
+
+  <!-- gilded page edges (peeking from under the cover) -->
+  <rect x="26" y="34" width="168" height="82" rx="3" fill="url(#pagesGrad)"/>
+  <rect x="26" y="34" width="168" height="82" rx="3" fill="none" stroke="#AD8A45" stroke-width="1" opacity="0.5"/>
+  <path d="M26 34 L194 34 M26 40 L194 40 M26 110 L194 110 M26 116 L194 116" stroke="#C9A96A" stroke-width="0.8" opacity="0.6"/>
+
+  <!-- closed Mus'haf cover -->
+  <rect x="20" y="30" width="180" height="88" rx="5" fill="url(#coverGrad)"/>
+  <rect x="20" y="30" width="180" height="88" rx="5" fill="none" stroke="#D9C08E" stroke-width="1.5"/>
+  <!-- inner gold frame -->
+  <rect x="30" y="40" width="160" height="68" rx="3" fill="none" stroke="#D9C08E" stroke-width="1" opacity="0.85"/>
+
+  <!-- central Islamic star medallion -->
+  <g transform="translate(110,74)">
+    <circle r="20" fill="none" stroke="#D9C08E" stroke-width="1.2"/>
+    <g fill="#D9C08E" opacity="0.95">
+      <path d="M0,-16 L4.6,-6.3 15,-8.1 7.9,-0.2 12.9,9.4 0,4.5 -12.9,9.4 -7.9,-0.2 -15,-8.1 -4.6,-6.3 Z"/>
+    </g>
+    <circle r="4.5" fill="#8A3535" stroke="#D9C08E" stroke-width="1"/>
   </g>
+
+  <!-- corner flourishes -->
+  <path d="M34 44 q6 0 6 6" stroke="#D9C08E" stroke-width="1.2" fill="none"/>
+  <path d="M186 44 q-6 0 -6 6" stroke="#D9C08E" stroke-width="1.2" fill="none"/>
+  <path d="M34 104 q6 0 6 -6" stroke="#D9C08E" stroke-width="1.2" fill="none"/>
+  <path d="M186 104 q-6 0 -6 -6" stroke="#D9C08E" stroke-width="1.2" fill="none"/>
+
+  <!-- spine highlight -->
+  <rect x="106" y="30" width="8" height="88" fill="#000" opacity="0.12"/>
 </svg>`;
 
 async function loadAll(){
@@ -656,7 +681,7 @@ function renderSpotlight(){
   }
   container.innerHTML = `
     <div class="spotlight-card" data-cat="${cat.id}">
-      <div class="spotlight-eyebrow">${Icon.target} مشروع مميز</div>
+      <div class="spotlight-eyebrow">${Icon.target} المشروع الأحوج لهذا الشهر</div>
       <div class="spotlight-icon">${catIcon(cat)}</div>
       <h2>${cat.name}</h2>
       <p>${cat.desc}</p>
