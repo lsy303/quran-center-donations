@@ -310,10 +310,17 @@
     border:1px solid var(--line); background:var(--white);
     font-weight:700; font-size:12.5px; cursor:pointer; color:var(--ink-2); white-space:nowrap;
     transition: background .15s ease, color .15s ease, border-color .15s ease;
+    position:relative;
   }
   .tab-row button:hover{ border-color:var(--gold); }
   .tab-row button.active{ background:var(--emerald); color:var(--white); border-color:var(--emerald); }
   .tab-row button svg{ opacity:.85; }
+  .tab-badge{
+    position:absolute; top:-7px; inset-inline-end:-6px;
+    background:var(--rose); color:#fff; font-size:10px; font-weight:800;
+    min-width:17px; height:17px; border-radius:9px; display:flex; align-items:center; justify-content:center;
+    padding:0 4px; line-height:1; border:2px solid var(--parchment);
+  }
 
   .pledge{
     background:var(--white); border:1px solid var(--line); border-radius:13px; padding:14px; margin-bottom:10px;
@@ -489,6 +496,7 @@ const Icon = {
   gear: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>`,
   printer: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>`,
   archive: `<svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>`,
+  download: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 19h16"/></svg>`,
 };
 function catIcon(cat){
   const map = { sponsor_student: Icon.graduationCap, sponsor_teacher: Icon.book, maintenance: Icon.wrench, general: Icon.heart };
@@ -526,6 +534,7 @@ let state = {
   pendingDraft: null,
   adminTab: 'pending',
   adminPin: DEFAULT_ADMIN_PIN,
+  unreadPendingCount: 0,
 };
 
 const HADITHS = [
@@ -895,6 +904,10 @@ function checkPin(){
     el('adminPanel').style.display = 'block';
     state.adminTab = 'projects';
     renderAdmin();
+    if('Notification' in window && Notification.permission === 'default'){
+      Notification.requestPermission();
+    }
+    startPledgesRealtimeListener();
   } else {
     showToast('الرمز غير صحيح', 'error');
   }
@@ -916,6 +929,8 @@ function renderTabLabels(){
     <button data-adm="payment">${Icon.card} وسيلة الدفع</button>
     <button data-adm="ticker">${Icon.folder} الشريط المتحرك</button>
     <button data-adm="security">${Icon.shield} تغيير رمز الدخول</button>
+    <button data-action="export">${Icon.download} تصدير التبرعات (Excel/CSV)</button>
+    <button data-action="backup">${Icon.download} نسخة احتياطية كاملة (JSON)</button>
   `;
   el('settingsMenu').querySelectorAll('[data-adm]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
@@ -923,6 +938,18 @@ function renderTabLabels(){
       Object.values(TAB_META).forEach(meta => el(meta.id).classList.remove('active'));
       el('settingsMenu').classList.remove('show');
       renderAdmin();
+    });
+  });
+  el('settingsMenu').querySelectorAll('[data-action="export"]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      el('settingsMenu').classList.remove('show');
+      exportPledgesCSV();
+    });
+  });
+  el('settingsMenu').querySelectorAll('[data-action="backup"]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      el('settingsMenu').classList.remove('show');
+      exportFullBackupJSON();
     });
   });
 }
@@ -934,7 +961,99 @@ function setAdminTab(tab){
   state.adminTab = tab;
   Object.values(TAB_META).forEach(meta => el(meta.id).classList.remove('active'));
   el(TAB_META[tab].id).classList.add('active');
+  if(tab === 'pending'){
+    state.unreadPendingCount = 0;
+    updatePendingBadge();
+  }
   renderAdmin();
+}
+
+/* =========================================================
+   LIVE ALERTS: realtime listener for new incoming pledges.
+   Free, no backend — works only while this browser tab is open
+   (foreground or background), not when the browser is fully
+   closed. Started once, right after a successful admin login.
+   ========================================================= */
+let pledgesListenerStarted = false;
+let pledgesListenerFirstSnapshot = true;
+
+function startPledgesRealtimeListener(){
+  if(pledgesListenerStarted) return;
+  pledgesListenerStarted = true;
+  db.collection('pledges').onSnapshot((snapshot)=>{
+    if(pledgesListenerFirstSnapshot){
+      // The first callback just reflects pledges that already existed
+      // when the listener attached — nothing to notify about yet.
+      pledgesListenerFirstSnapshot = false;
+      return;
+    }
+    let sawNewPledge = false;
+    snapshot.docChanges().forEach((change)=>{
+      const p = { id: change.doc.id, ...change.doc.data() };
+      if(change.type === 'added'){
+        if(!state.pledges.some(x => x.id === p.id)){
+          state.pledges.push(p);
+          if(p.status === 'pending'){ notifyNewPledge(p); sawNewPledge = true; }
+        }
+      } else if(change.type === 'modified'){
+        const idx = state.pledges.findIndex(x => x.id === p.id);
+        if(idx > -1) state.pledges[idx] = p;
+      } else if(change.type === 'removed'){
+        state.pledges = state.pledges.filter(x => x.id !== p.id);
+      }
+    });
+    if(sawNewPledge || snapshot.docChanges().length){
+      renderSpotlight(); renderRail();
+      if(el('adminPanel').style.display !== 'none') renderAdmin();
+    }
+  }, (err)=> console.error('Pledges realtime listener error', err));
+}
+
+function notifyNewPledge(p){
+  state.unreadPendingCount = (state.unreadPendingCount || 0) + 1;
+  updatePendingBadge();
+  playNotificationSound();
+  showToast(`تبرع جديد — ${p.catName} — ${money(p.amount)} د.ب`, 'success');
+  if('Notification' in window && Notification.permission === 'granted'){
+    try{
+      new Notification('تبرع جديد بانتظار التأكيد', {
+        body: `${p.catName} — ${money(p.amount)} د.ب`,
+      });
+    }catch(e){ console.error('Notification failed', e); }
+  }
+}
+
+function playNotificationSound(){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.4);
+  }catch(e){ console.error('playNotificationSound failed', e); }
+}
+
+function updatePendingBadge(){
+  const btn = el(TAB_META.pending.id);
+  if(!btn) return;
+  let badge = btn.querySelector('.tab-badge');
+  const count = state.unreadPendingCount || 0;
+  if(count > 0){
+    if(!badge){
+      badge = document.createElement('span');
+      badge.className = 'tab-badge';
+      btn.appendChild(badge);
+    }
+    badge.textContent = count > 9 ? '9+' : String(count);
+  } else if(badge){
+    badge.remove();
+  }
 }
 
 /* =========================================================
@@ -1173,6 +1292,87 @@ function printMonthReport(key, statusFilter){
     </table>
   `;
   window.print();
+}
+
+/* =========================================================
+   EXPORT: all pledges to CSV (opens directly in Excel)
+   ========================================================= */
+function csvCell(v){
+  const s = String(v ?? '');
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function exportPledgesCSV(){
+  if(!state.pledges.length){ showToast('لا توجد تبرعات لتصديرها', 'error'); return; }
+  const statusLabel = { pending:'بانتظار التأكيد', confirmed:'مؤكد', archived:'مؤرشف' };
+  const headers = ['رقم التبرع', 'الفئة', 'المبلغ (د.ب)', 'الحالة', 'التاريخ والوقت', 'يوجد إيصال'];
+  const sorted = state.pledges.slice().sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const rows = sorted.map(p => [
+    p.id,
+    p.catName,
+    money(p.amount),
+    statusLabel[p.status] || p.status,
+    new Date(p.createdAt).toLocaleString('ar-BH'),
+    p.receiptImage ? 'نعم' : 'لا'
+  ]);
+  const totalConfirmed = state.pledges.filter(p => p.status === 'confirmed').reduce((s,p) => s + p.amount, 0);
+  const totalPending   = state.pledges.filter(p => p.status === 'pending').reduce((s,p) => s + p.amount, 0);
+  const totalArchived  = state.pledges.filter(p => p.status === 'archived').reduce((s,p) => s + p.amount, 0);
+
+  const lines = [headers, ...rows].map(r => r.map(csvCell).join(','));
+  lines.push('');
+  lines.push([csvCell('إجمالي المؤكد (د.ب)'), csvCell(money(totalConfirmed))].join(','));
+  lines.push([csvCell('إجمالي بانتظار التأكيد (د.ب)'), csvCell(money(totalPending))].join(','));
+  lines.push([csvCell('إجمالي المؤرشف (د.ب)'), csvCell(money(totalArchived))].join(','));
+
+  // Leading BOM ensures Excel renders the Arabic text correctly as UTF-8
+  const csv = '\uFEFF' + lines.join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const dateStr = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `تبرعات-${dateStr}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('تم تصدير الملف', 'success');
+}
+
+/* =========================================================
+   BACKUP: full data export to JSON (identity, payment,
+   categories, all pledges, ticker, featured project, PIN).
+   This is the only source of truth outside Firestore itself —
+   important since the app has no other backend or database.
+   ========================================================= */
+function exportFullBackupJSON(){
+  try{
+    const backup = {
+      exportedAt: new Date().toISOString(),
+      identity: state.identity,
+      payment: state.payment,
+      categories: state.categories,
+      pledges: state.pledges,
+      ticker: state.ticker,
+      featuredCatId: state.featuredCatId,
+      adminPin: state.adminPin,
+    };
+    const json = JSON.stringify(backup, null, 2);
+    const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const dateStr = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `نسخة-احتياطية-${dateStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('تم تنزيل النسخة الاحتياطية', 'success');
+  } catch(e){
+    console.error('exportFullBackupJSON failed', e);
+    showToast('تعذّر إنشاء النسخة الاحتياطية', 'error');
+  }
 }
 
 /* =========================================================
