@@ -429,7 +429,7 @@
     <div id="pinGateSeal"></div>
     <h1 style="font-size:19px; font-family:'Amiri',serif; margin:14px 0 4px;">دخول الإدارة</h1>
     <p style="color:var(--ink-2); font-size:12.5px; margin:0 0 6px;">أدخل رمز الدخول الخاص بالإدارة</p>
-    <input type="text" id="pinInput" placeholder="••••" maxlength="6">
+    <input type="text" id="pinInput" placeholder="••••" maxlength="6" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="numeric" name="admin-access-code-field">
     <div class="btn btn-primary" id="btnCheckPin">دخول</div>
     <button class="btn btn-ghost" id="btnBackFromPin">رجوع</button>
   </div>
@@ -563,6 +563,89 @@ const Store = {
   }
 };
 
+/* ---------------------------------------------------------
+   PledgesStore — each pledge is its own Firestore document.
+   Firestore caps a single document at 1MB. The old design kept
+   every pledge (including its receipt image) inside one array
+   stored in a single "kv/pledges" document, which would eventually
+   hit that cap and silently fail to save once enough donations —
+   especially receipt photos — accumulated. Storing one document
+   per pledge removes that ceiling entirely; growth is now limited
+   only by the (effectively unlimited) collection size, not a
+   single document's size.
+   --------------------------------------------------------- */
+const PledgesStore = {
+  async loadAll(){
+    try{
+      const snap = await db.collection('pledges').orderBy('createdAt', 'desc').get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    }catch(e){ console.error('PledgesStore.loadAll failed', e); return []; }
+  },
+  async upsert(pledge){
+    try{
+      const { id, ...data } = pledge;
+      await db.collection('pledges').doc(id).set(data);
+    }catch(e){ console.error('PledgesStore.upsert failed', e); showToast('تعذّر حفظ التبرع — تحقق من الاتصال', 'error'); }
+  },
+  async updateStatus(id, status){
+    try{ await db.collection('pledges').doc(id).update({ status }); }
+    catch(e){ console.error('PledgesStore.updateStatus failed', e); showToast('تعذّر تحديث الحالة — تحقق من الاتصال', 'error'); }
+  },
+  async remove(id){
+    try{ await db.collection('pledges').doc(id).delete(); }
+    catch(e){ console.error('PledgesStore.remove failed', e); showToast('تعذّر الحذف — تحقق من الاتصال', 'error'); }
+  }
+};
+
+// One-time migration: if the old single-document array ("kv/pledges") still
+// holds data and the new per-document collection is empty, copy it over.
+// Safe to run on every load — it only acts when the new collection is empty.
+async function migrateLegacyPledgesIfNeeded(){
+  try{
+    const probe = await db.collection('pledges').limit(1).get();
+    if(!probe.empty) return;
+    const legacy = await Store.load('pledges', null);
+    if(!legacy || !legacy.length) return;
+    for(const p of legacy){
+      const { id, ...data } = p;
+      const docId = id || (Date.now().toString(36) + Math.random().toString(36).slice(2));
+      await db.collection('pledges').doc(docId).set(data);
+    }
+  }catch(e){ console.error('Legacy pledges migration failed', e); }
+}
+
+/* ---------------------------------------------------------
+   Compress a receipt photo before it's stored, so each pledge
+   document stays small (typically tens of KB instead of several
+   MB straight off a phone camera) and well under Firestore's
+   per-document limit.
+   --------------------------------------------------------- */
+function compressReceiptImage(file, maxDim, quality){
+  maxDim = maxDim || 900; quality = quality || 0.68;
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('read failed'));
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onerror = () => reject(new Error('image decode failed'));
+      img.onload = ()=>{
+        let { width, height } = img;
+        if(width > maxDim || height > maxDim){
+          const scale = maxDim / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 const DEFAULT_TICKER = [
   { text: 'الصدقة تُطفئ الخطيئة كما يُطفئ الماء النار', src: 'رواه الترمذي' },
   { text: 'ما نقصت صدقة من مال', src: 'رواه مسلم' },
@@ -575,7 +658,8 @@ async function loadAll(){
   state.identity  = await Store.load('identity', { ...DEFAULT_IDENTITY });
   state.payment   = await Store.load('payment', { ...DEFAULT_PAYMENT });
   state.categories = await Store.load('categories', DEFAULT_CATEGORIES);
-  state.pledges   = await Store.load('pledges', []);
+  await migrateLegacyPledgesIfNeeded();
+  state.pledges   = await PledgesStore.loadAll();
   state.ticker    = await Store.load('ticker', DEFAULT_TICKER);
   const featured  = await Store.load('featured', { catId: null });
   state.featuredCatId = featured.catId;
@@ -735,31 +819,38 @@ function goToPaymentStep(){
 async function submitPledge(){
   if(!state.pendingDraft) return;
   const fileInput = el('receiptFile');
+  const submitBtn = el('btnSubmitPledge');
+  const originalLabel = submitBtn.innerHTML;
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = `جارِ الإرسال...`;
 
-  const finalize = async (receiptImage)=>{
-    state.pledges.push({
+  try{
+    let receiptImage = '';
+    if(fileInput.files && fileInput.files[0]){
+      receiptImage = await compressReceiptImage(fileInput.files[0]);
+    }
+    const pledge = {
       id: Date.now().toString(36),
       catId: state.pendingDraft.catId,
       catName: state.pendingDraft.catName,
       baseAmount: state.pendingDraft.baseAmount,
       amount: state.pendingDraft.baseAmount,
-      receiptImage: receiptImage || '',
+      receiptImage,
       status: 'pending',
       createdAt: new Date().toISOString()
-    });
-    await Store.save('pledges', state.pledges);
+    };
+    state.pledges.push(pledge);
+    await PledgesStore.upsert(pledge);
     el('qrStep').style.display = 'none';
     el('doneStep').style.display = 'block';
     renderSpotlight();
     renderRail();
-  };
-
-  if(fileInput.files && fileInput.files[0]){
-    const reader = new FileReader();
-    reader.onload = (e) => finalize(e.target.result);
-    reader.readAsDataURL(fileInput.files[0]);
-  } else {
-    await finalize('');
+  } catch(e){
+    console.error('submitPledge failed', e);
+    showToast('تعذّر إرسال التبرع — تحقق من الاتصال', 'error');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = originalLabel;
   }
 }
 
@@ -1089,19 +1180,19 @@ function printMonthReport(key, statusFilter){
    ========================================================= */
 async function confirmPledge(id){
   const p = state.pledges.find(x => x.id === id);
-  if(p){ p.status = 'confirmed'; await Store.save('pledges', state.pledges); showToast('تم التأكيد', 'success'); renderAdmin(); }
+  if(p){ p.status = 'confirmed'; await PledgesStore.updateStatus(id, 'confirmed'); showToast('تم التأكيد', 'success'); renderAdmin(); }
 }
 async function archivePledge(id){
   const p = state.pledges.find(x => x.id === id);
-  if(p){ p.status = 'archived'; await Store.save('pledges', state.pledges); showToast('تم النقل للأرشيف', 'success'); renderAdmin(); }
+  if(p){ p.status = 'archived'; await PledgesStore.updateStatus(id, 'archived'); showToast('تم النقل للأرشيف', 'success'); renderAdmin(); }
 }
 async function restorePledge(id){
   const p = state.pledges.find(x => x.id === id);
-  if(p){ p.status = 'confirmed'; await Store.save('pledges', state.pledges); showToast('تمت الاستعادة', 'success'); renderAdmin(); }
+  if(p){ p.status = 'confirmed'; await PledgesStore.updateStatus(id, 'confirmed'); showToast('تمت الاستعادة', 'success'); renderAdmin(); }
 }
 async function deletePledge(id){
   state.pledges = state.pledges.filter(x => x.id !== id);
-  await Store.save('pledges', state.pledges);
+  await PledgesStore.remove(id);
   renderAdmin();
 }
 async function addCategory(){
