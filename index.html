@@ -318,13 +318,30 @@
     transition: box-shadow .15s ease;
   }
   .pledge:hover{ box-shadow: var(--shadow-sm); }
+  .pledge{ flex-wrap:wrap; }
+  .pledge-row-top{ display:flex; align-items:center; gap:10px; width:100%; }
   .pledge .thumb{ width:52px;height:52px;border-radius:9px;flex-shrink:0; }
   .pledge .thumb-img{ object-fit:cover; border:1px solid var(--line); cursor:pointer; }
   .pledge .thumb-empty{ background:var(--parchment-2); display:flex; align-items:center; justify-content:center; color:var(--ink-soft); }
   .pledge .info{ flex:1; min-width:120px; }
   .pledge .info b{ display:block; font-size:14.5px; }
   .pledge .info span{ font-size:11.5px; color:var(--ink-soft); }
-  .pledge .amt{ font-weight:800; font-family:monospace; direction:ltr; font-size:14px; color:var(--emerald); }
+  .pledge-note-text{
+    width:100%; margin-top:8px; padding:8px 10px; background:var(--emerald-tint); border-radius:8px;
+    font-size:12px; color:var(--emerald); display:flex; align-items:flex-start; gap:6px; line-height:1.5;
+  }
+  .pledge-note-text svg{ flex-shrink:0; margin-top:1px; }
+  .pledge-note-editor{ width:100%; margin-top:8px; }
+  .pledge-note-editor textarea{
+    width:100%; min-height:60px; padding:9px 11px; border-radius:9px; border:1px solid var(--line);
+    background:var(--white); font-size:13px; font-family:'Cairo',sans-serif; color:var(--ink); resize:vertical;
+    margin-bottom:8px;
+  }
+  .pledge-note-editor .note-editor-actions{ display:flex; gap:6px; }
+  .pledge-note-editor .note-editor-actions button{
+    border:none; border-radius:8px; padding:8px 12px; font-size:11.5px; font-weight:700; cursor:pointer;
+  }
+  .amt{ font-weight:800; font-family:monospace; direction:ltr; font-size:14px; color:var(--emerald); }
   .pledge .actions{ display:flex; gap:6px; }
   .pledge .actions button{ border:none; border-radius:9px; padding:9px 12px; font-size:12px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:5px; transition: filter .15s ease; }
   .pledge .actions button:hover{ filter:brightness(0.95); }
@@ -363,6 +380,12 @@
 <body>
 <div class="toast" id="toast"></div>
 <div class="lightbox" id="lightbox"><img id="lightboxImg" src=""></div>
+<div class="lightbox" id="breakdownModal">
+  <div class="panel" id="breakdownPanel" style="max-width:420px; width:100%; max-height:80vh; overflow-y:auto;">
+    <h3 style="justify-content:space-between;"><span style="display:flex; align-items:center; gap:7px;">تصنيف الإجمالي المؤكد</span><button class="cancel-btn" id="btnCloseBreakdown" style="padding:6px 10px;">إغلاق</button></h3>
+    <div id="breakdownList"></div>
+  </div>
+</div>
 <div class="marquee-band">
   <div class="marquee-track" id="marqueeTrack"></div>
 </div>
@@ -403,7 +426,7 @@
         <div class="step-row"><div class="step-num">٣</div><div class="step-text">حوّل المبلغ <b id="stepsAmount"></b> د.ب</div></div>
         <div class="step-row"><div class="step-num">٤</div><div class="step-text">ارفع صورة إيصال التحويل بالأسفل وأرسلها للمراجعة</div></div>
       </div>
-      <label><b style="color:var(--rose);">مهم جداً:</b> صورة إيصال التحويل (لتسهيل متابعة استلام تبرعك وتوجيه المبلغ للفئة المطلوبة بشكل أسرع)</label>
+      <label><b style="color:var(--rose);">إلزامي:</b> صورة إيصال التحويل — لا يمكن إرسال التبرع بدونها، حتى نقدر نأكّد استلام المبلغ ونوجّهه للفئة الصحيحة</label>
       <input type="file" id="receiptFile" accept="image/*">
       <button class="btn btn-primary" id="btnSubmitPledge">إرسال للمراجعة</button>
       <button class="btn btn-ghost" id="btnCloseModal2">إلغاء</button>
@@ -478,6 +501,7 @@ const Icon = {
   gear: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>`,
   printer: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>`,
   archive: `<svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>`,
+  note: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10l6-6V5a2 2 0 0 0-2-2z"/><path d="M15 21v-6h6"/><path d="M9 9h6M9 13h4"/></svg>`,
   download: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 19h16"/></svg>`,
 };
 function catIcon(cat){
@@ -514,6 +538,8 @@ let state = {
   adminTab: 'pending',
   adminPin: DEFAULT_ADMIN_PIN,
   unreadPendingCount: 0,
+  openNotesId: null,
+  editCatId: null,
 };
 
 const firebaseConfig = {
@@ -556,6 +582,10 @@ const PledgesStore = {
   async updateStatus(id, status){
     try{ await db.collection('pledges').doc(id).update({ status }); }
     catch(e){ console.error('PledgesStore.updateStatus failed', e); showToast('تعذّر تحديث الحالة — تحقق من الاتصال', 'error'); }
+  },
+  async updateNotes(id, notes){
+    try{ await db.collection('pledges').doc(id).update({ notes }); }
+    catch(e){ console.error('PledgesStore.updateNotes failed', e); showToast('تعذّر حفظ الملاحظة — تحقق من الاتصال', 'error'); }
   },
   async remove(id){
     try{ await db.collection('pledges').doc(id).delete(); }
@@ -766,16 +796,17 @@ function goToPaymentStep(){
 async function submitPledge(){
   if(!state.pendingDraft) return;
   const fileInput = el('receiptFile');
+  if(!fileInput.files || !fileInput.files[0]){
+    showToast('الرجاء رفع صورة إيصال التحويل قبل الإرسال', 'error');
+    return;
+  }
   const submitBtn = el('btnSubmitPledge');
   const originalLabel = submitBtn.innerHTML;
   submitBtn.disabled = true;
   submitBtn.innerHTML = `جارِ الإرسال...`;
 
   try{
-    let receiptImage = '';
-    if(fileInput.files && fileInput.files[0]){
-      receiptImage = await compressReceiptImage(fileInput.files[0]);
-    }
+    const receiptImage = await compressReceiptImage(fileInput.files[0]);
     const pledge = {
       id: Date.now().toString(36),
       catId: state.pendingDraft.catId,
@@ -784,6 +815,7 @@ async function submitPledge(){
       amount: state.pendingDraft.baseAmount,
       receiptImage,
       status: 'pending',
+      notes: '',
       createdAt: new Date().toISOString()
     };
     state.pledges.push(pledge);
@@ -815,6 +847,33 @@ function openLightbox(src){
 }
 function closeLightbox(){
   el('lightbox').classList.remove('show');
+}
+
+function openConfirmedBreakdown(){
+  const confirmed = state.pledges.filter(p => p.status === 'confirmed');
+  const totalConfirmed = confirmed.reduce((s,p)=> s+p.amount, 0);
+  const sums = {};
+  confirmed.forEach(p=>{
+    sums[p.catId] = (sums[p.catId] || 0) + p.amount;
+  });
+  const rows = Object.entries(sums)
+    .sort((a,b) => b[1] - a[1])
+    .map(([catId, amount])=>{
+      const cat = state.categories.find(c => c.id === catId);
+      const name = cat ? cat.name : (confirmed.find(p=>p.catId===catId)?.catName || catId);
+      const pct = totalConfirmed > 0 ? Math.round((amount / totalConfirmed) * 100) : 0;
+      return `
+        <div class="pledge">
+          <div class="info"><b>${name}</b><span>${pct}% من الإجمالي المؤكد</span></div>
+          <div class="amt">${money(amount)}</div>
+        </div>
+      `;
+    }).join('');
+  el('breakdownList').innerHTML = rows || `<div class="empty">${Icon.clock}<div>لا توجد تبرعات مؤكدة بعد</div></div>`;
+  el('breakdownModal').classList.add('show');
+}
+function closeConfirmedBreakdown(){
+  el('breakdownModal').classList.remove('show');
 }
 
 function showAdminGate(){
@@ -987,9 +1046,10 @@ function renderAdmin(){
   const totalConfirmed = state.pledges.filter(p=>p.status==='confirmed').reduce((s,p)=>s+p.amount,0);
   const totalPending   = state.pledges.filter(p=>p.status==='pending').reduce((s,p)=>s+p.amount,0);
   el('totalsRow').innerHTML = `
-    <div class="total-card"><div class="t-icon" style="color:var(--ok);">${Icon.checkCircle}</div><b>${money(totalConfirmed)}</b><span>إجمالي مؤكد (د.ب)</span></div>
+    <div class="total-card" id="totalConfirmedCard" style="cursor:pointer;"><div class="t-icon" style="color:var(--ok);">${Icon.checkCircle}</div><b>${money(totalConfirmed)}</b><span>إجمالي مؤكد (د.ب)</span></div>
     <div class="total-card"><div class="t-icon" style="color:var(--gold-dark);">${Icon.clock}</div><b>${money(totalPending)}</b><span>بانتظار التأكيد (د.ب)</span></div>
   `;
+  el('totalConfirmedCard').addEventListener('click', openConfirmedBreakdown);
 
   const content = el('tabContent');
   if(state.adminTab === 'identity') return renderIdentityTab(content);
@@ -1110,16 +1170,36 @@ function renderProjectsTab(content){
       <input type="number" id="newCatTarget" placeholder="0">
       <button class="btn btn-primary" id="btnAddCategory">${Icon.check} إضافة</button>
     </div>
-    ${state.categories.map(c => `
+    ${state.categories.map(c => {
+      const editing = state.editCatId === c.id;
+      if(editing){
+        return `
+          <div class="panel">
+            <h3>${Icon.folder} تعديل الفئة</h3>
+            <label>الاسم</label>
+            <input type="text" id="editCatName-${c.id}" value="${c.name}">
+            <label>الوصف</label>
+            <input type="text" id="editCatDesc-${c.id}" value="${c.desc}">
+            <label>الهدف المالي (د.ب) — اتركه 0 إذا لا يوجد هدف محدد</label>
+            <input type="number" id="editCatTarget-${c.id}" value="${c.target || 0}" placeholder="مثال: 700">
+            <div class="note-editor-actions" style="margin-top:6px;">
+              <button class="confirm-btn" data-catsave="${c.id}">${Icon.check} حفظ</button>
+              <button class="cancel-btn" data-catcancel="${c.id}">إلغاء</button>
+            </div>
+          </div>`;
+      }
+      return `
       <div class="pledge">
         <div class="cat-icon" style="width:38px;height:38px;">${catIcon(c)}</div>
-        <div class="info"><b>${c.name}</b><span>${c.desc}${c.hasTarget ? ' — هدف: '+c.target+' د.ب' : ''}</span></div>
+        <div class="info"><b>${c.name}</b><span>${c.desc}${c.hasTarget ? ' — هدف: '+money(c.target)+' د.ب' : ''}</span></div>
         <div class="actions">
           <button class="${c.id === state.featuredCatId ? 'confirm-btn' : 'cancel-btn'}" data-feature="${c.id}">${Icon.target} ${c.id === state.featuredCatId ? 'مميز الآن' : 'اجعلها المميزة'}</button>
+          <button class="cancel-btn" data-catedit="${c.id}">${Icon.note} تعديل</button>
           <button class="cancel-btn" data-delcat="${c.id}">${Icon.trash} حذف</button>
         </div>
       </div>
-    `).join('')}
+    `;
+    }).join('')}
   `;
   el('btnAddCategory').addEventListener('click', addCategory);
   content.querySelectorAll('[data-delcat]').forEach(btn=>{
@@ -1128,6 +1208,19 @@ function renderProjectsTab(content){
   content.querySelectorAll('[data-feature]').forEach(btn=>{
     btn.addEventListener('click', ()=> setFeatured(btn.dataset.feature));
   });
+  content.querySelectorAll('[data-catedit]').forEach(btn=>{
+    btn.addEventListener('click', ()=> { state.editCatId = btn.dataset.catedit; renderAdmin(); });
+  });
+  content.querySelectorAll('[data-catcancel]').forEach(btn=>{
+    btn.addEventListener('click', ()=> { state.editCatId = null; renderAdmin(); });
+  });
+  content.querySelectorAll('[data-catsave]').forEach(btn=>{
+    btn.addEventListener('click', ()=> saveCategoryEdit(btn.dataset.catsave));
+  });
+}
+
+function escapeHtml(s){
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 }
 
 function renderPledgesTab(content, statusFilter){
@@ -1145,24 +1238,44 @@ function renderPledgesTab(content, statusFilter){
     const total = g.items.reduce((s,p)=> s+p.amount, 0);
     const rows = g.items
       .sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt))
-      .map(p => `
+      .map(p => {
+        const noteOpen = state.openNotesId === p.id;
+        let noteHtml = '';
+        if(noteOpen){
+          noteHtml = `
+            <div class="pledge-note-editor">
+              <textarea id="noteInput-${p.id}" placeholder="مثال: أرسلت صورة الإيصال على الواتس، أو المبلغ دخل حساب آخر">${escapeHtml(p.notes)}</textarea>
+              <div class="note-editor-actions">
+                <button class="confirm-btn" data-notesave="${p.id}">${Icon.check} حفظ الملاحظة</button>
+                <button class="cancel-btn" data-notecancel="${p.id}">إلغاء</button>
+              </div>
+            </div>`;
+        } else if(p.notes){
+          noteHtml = `<div class="pledge-note-text">${Icon.note}<span>${escapeHtml(p.notes)}</span></div>`;
+        }
+        return `
         <div class="pledge">
-          ${p.receiptImage
-            ? `<img src="${p.receiptImage}" class="thumb thumb-img" data-lightbox="${p.receiptImage}">`
-            : `<div class="thumb thumb-empty">${Icon.image}</div>`}
-          <div class="info">
-            <b>${p.catName}</b>
-            <span>${new Date(p.createdAt).toLocaleString('ar-BH')}</span>
+          <div class="pledge-row-top">
+            ${p.receiptImage
+              ? `<img src="${p.receiptImage}" class="thumb thumb-img" data-lightbox="${p.receiptImage}">`
+              : `<div class="thumb thumb-empty">${Icon.image}</div>`}
+            <div class="info">
+              <b>${p.catName}</b>
+              <span>${new Date(p.createdAt).toLocaleString('ar-BH')}</span>
+            </div>
+            <div class="amt">${money(p.amount)}</div>
+            <div class="actions">
+              ${p.status === 'pending' ? `<button class="confirm-btn" data-confirm="${p.id}">${Icon.check} تأكيد</button>` : ''}
+              ${p.status === 'confirmed' ? `<button class="cancel-btn" data-archive="${p.id}">${Icon.archive} أرشفة</button>` : ''}
+              ${p.status === 'archived' ? `<button class="cancel-btn" data-restore="${p.id}">استعادة</button>` : ''}
+              <button class="cancel-btn" data-noteedit="${p.id}" title="ملاحظة">${Icon.note}</button>
+              <button class="cancel-btn" data-delpledge="${p.id}">${Icon.trash}</button>
+            </div>
           </div>
-          <div class="amt">${money(p.amount)}</div>
-          <div class="actions">
-            ${p.status === 'pending' ? `<button class="confirm-btn" data-confirm="${p.id}">${Icon.check} تأكيد</button>` : ''}
-            ${p.status === 'confirmed' ? `<button class="cancel-btn" data-archive="${p.id}">${Icon.archive} أرشفة</button>` : ''}
-            ${p.status === 'archived' ? `<button class="cancel-btn" data-restore="${p.id}">استعادة</button>` : ''}
-            <button class="cancel-btn" data-delpledge="${p.id}">${Icon.trash}</button>
-          </div>
+          ${noteHtml}
         </div>
-      `).join('');
+      `;
+      }).join('');
     return `
       <div class="month-group">
         <div class="month-header">
@@ -1185,6 +1298,15 @@ function renderPledgesTab(content, statusFilter){
   });
   content.querySelectorAll('[data-delpledge]').forEach(btn=>{
     btn.addEventListener('click', ()=> deletePledge(btn.dataset.delpledge));
+  });
+  content.querySelectorAll('[data-noteedit]').forEach(btn=>{
+    btn.addEventListener('click', ()=> toggleNotesPanel(btn.dataset.noteedit));
+  });
+  content.querySelectorAll('[data-notesave]').forEach(btn=>{
+    btn.addEventListener('click', ()=> saveNotes(btn.dataset.notesave));
+  });
+  content.querySelectorAll('[data-notecancel]').forEach(btn=>{
+    btn.addEventListener('click', ()=> { state.openNotesId = null; renderAdmin(); });
   });
   content.querySelectorAll('[data-lightbox]').forEach(img=>{
     img.addEventListener('click', ()=> openLightbox(img.dataset.lightbox));
@@ -1289,6 +1411,21 @@ function exportFullBackupJSON(){
   }
 }
 
+function toggleNotesPanel(id){
+  state.openNotesId = (state.openNotesId === id) ? null : id;
+  renderAdmin();
+}
+async function saveNotes(id){
+  const textarea = el('noteInput-' + id);
+  const notes = textarea ? textarea.value.trim() : '';
+  const p = state.pledges.find(x => x.id === id);
+  if(p) p.notes = notes;
+  await PledgesStore.updateNotes(id, notes);
+  state.openNotesId = null;
+  showToast('تم حفظ الملاحظة', 'success');
+  renderAdmin();
+}
+
 async function confirmPledge(id){
   const p = state.pledges.find(x => x.id === id);
   if(p){ p.status = 'confirmed'; await PledgesStore.updateStatus(id, 'confirmed'); showToast('تم التأكيد', 'success'); renderAdmin(); }
@@ -1306,6 +1443,23 @@ async function deletePledge(id){
   await PledgesStore.remove(id);
   renderAdmin();
 }
+async function saveCategoryEdit(id){
+  const cat = state.categories.find(c => c.id === id);
+  if(!cat) return;
+  const name = el('editCatName-' + id).value.trim();
+  const desc = el('editCatDesc-' + id).value.trim();
+  const target = parseFloat(el('editCatTarget-' + id).value) || 0;
+  if(!name){ showToast('الرجاء إدخال اسم الفئة', 'error'); return; }
+  cat.name = name;
+  cat.desc = desc || '—';
+  cat.target = target;
+  cat.hasTarget = target > 0;
+  await Store.save('categories', state.categories);
+  state.editCatId = null;
+  showToast('تم حفظ التعديلات', 'success');
+  renderAdmin();
+}
+
 async function addCategory(){
   const name = el('newCatName').value.trim();
   const desc = el('newCatDesc').value.trim();
@@ -1424,6 +1578,10 @@ el('btnCloseModal2').addEventListener('click', closeDonateModal);
 el('btnCloseModal3').addEventListener('click', closeDonateModal);
 el('btnCopyIban').addEventListener('click', copyIban);
 el('lightbox').addEventListener('click', closeLightbox);
+el('breakdownModal').addEventListener('click', (e)=>{
+  if(e.target.id === 'breakdownModal') closeConfirmedBreakdown();
+});
+el('btnCloseBreakdown').addEventListener('click', closeConfirmedBreakdown);
 el('btnSettingsGear').addEventListener('click', (e)=>{
   e.stopPropagation();
   el('settingsMenu').classList.toggle('show');
