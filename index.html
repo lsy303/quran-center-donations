@@ -1350,7 +1350,7 @@ function csvCell(v){
 function exportPledgesCSV(){
   if(!state.pledges.length){ showToast('لا توجد تبرعات لتصديرها', 'error'); return; }
   const statusLabel = { pending:'بانتظار التأكيد', confirmed:'مؤكد', archived:'مؤرشف' };
-  const headers = ['رقم التبرع', 'الفئة', 'المبلغ (د.ب)', 'الحالة', 'التاريخ والوقت', 'يوجد إيصال'];
+  const headers = ['رقم التبرع', 'الفئة', 'المبلغ (د.ب)', 'الحالة', 'التاريخ والوقت', 'يوجد إيصال', 'الملاحظات'];
   const sorted = state.pledges.slice().sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
   const rows = sorted.map(p => [
     p.id,
@@ -1358,7 +1358,8 @@ function exportPledgesCSV(){
     money(p.amount),
     statusLabel[p.status] || p.status,
     new Date(p.createdAt).toLocaleString('ar-BH'),
-    p.receiptImage ? 'نعم' : 'لا'
+    p.receiptImage ? 'نعم' : 'لا',
+    p.notes || ''
   ]);
   const totalConfirmed = state.pledges.filter(p => p.status === 'confirmed').reduce((s,p) => s + p.amount, 0);
   const totalPending   = state.pledges.filter(p => p.status === 'pending').reduce((s,p) => s + p.amount, 0);
