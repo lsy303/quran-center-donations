@@ -8,6 +8,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <style>
   :root{
     --ink:#241C14;
@@ -446,8 +448,9 @@
   <div class="pin-gate" id="pinGate">
     <div id="pinGateSeal"></div>
     <h1 style="font-size:19px; font-family:'Amiri',serif; margin:14px 0 4px;">دخول الإدارة</h1>
-    <p style="color:var(--ink-2); font-size:12.5px; margin:0 0 6px;">أدخل رمز الدخول الخاص بالإدارة</p>
-    <input type="text" id="pinInput" placeholder="••••" maxlength="20" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="admin-access-code-field">
+    <p style="color:var(--ink-2); font-size:12.5px; margin:0 0 6px;">أدخل بيانات حساب الإدارة</p>
+    <input type="email" id="adminEmail" placeholder="البريد الإلكتروني" autocomplete="username" style="max-width:260px; text-align:right; letter-spacing:normal; font-size:14px;">
+    <input type="password" id="adminPassword" placeholder="كلمة المرور" autocomplete="current-password" style="max-width:260px; text-align:right; letter-spacing:normal; font-size:14px;">
     <div class="btn btn-primary" id="btnCheckPin">دخول</div>
     <button class="btn btn-ghost" id="btnBackFromPin">رجوع</button>
   </div>
@@ -505,14 +508,13 @@ const Icon = {
   archive: `<svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>`,
   note: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10l6-6V5a2 2 0 0 0-2-2z"/><path d="M15 21v-6h6"/><path d="M9 9h6M9 13h4"/></svg>`,
   download: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 19h16"/></svg>`,
+  logout: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>`,
 };
 function catIcon(cat){
   const map = { sponsor_student: Icon.graduationCap, sponsor_teacher: Icon.book, maintenance: Icon.wrench, general: Icon.heart };
   if(map[cat.id]) return map[cat.id];
   return cat.hasTarget ? Icon.target : Icon.heart;
 }
-
-const DEFAULT_ADMIN_PIN = "QC-Adm2026!";
 
 const DEFAULT_IDENTITY = {
   centerName: 'مركز الشيخان وشريفة الفارسي لتحفيظ القرآن الكريم',
@@ -538,7 +540,6 @@ let state = {
   activeCategory: null,
   pendingDraft: null,
   adminTab: 'pending',
-  adminPin: DEFAULT_ADMIN_PIN,
   unreadPendingCount: 0,
   openNotesId: null,
   editCatId: null,
@@ -554,6 +555,25 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+const auth = firebase.auth();
+
+/* =========================================================
+   SESSION IDLE TIMEOUT — auto sign-out after inactivity
+   ========================================================= */
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+let idleTimer = null;
+function resetIdleTimer(){
+  clearTimeout(idleTimer);
+  if(!auth.currentUser) return;
+  idleTimer = setTimeout(async ()=>{
+    await auth.signOut();
+    showToast('تم تسجيل الخروج تلقائياً بسبب عدم النشاط', 'error');
+    showPublicView();
+  }, IDLE_TIMEOUT_MS);
+}
+['click','keydown','mousemove','touchstart'].forEach(evt=>{
+  document.addEventListener(evt, ()=>{ if(auth.currentUser) resetIdleTimer(); }, { passive:true });
+});
 
 const Store = {
   async load(key, fallback){
@@ -647,12 +667,9 @@ async function loadAll(){
   state.identity  = await Store.load('identity', { ...DEFAULT_IDENTITY });
   state.payment   = await Store.load('payment', { ...DEFAULT_PAYMENT });
   state.categories = await Store.load('categories', DEFAULT_CATEGORIES);
-  await migrateLegacyPledgesIfNeeded();
-  state.pledges   = await PledgesStore.loadAll();
   state.ticker    = await Store.load('ticker', DEFAULT_TICKER);
   const featured  = await Store.load('featured', { catId: null });
   state.featuredCatId = featured.catId;
-  state.adminPin = await Store.load('adminPin', DEFAULT_ADMIN_PIN);
   renderHeader();
   renderAdminSeals();
   renderMarquee();
@@ -884,7 +901,8 @@ function showAdminGate(){
   el('adminView').classList.add('show');
   el('pinGate').style.display = 'block';
   el('adminPanel').style.display = 'none';
-  el('pinInput').value = '';
+  el('adminEmail').value = '';
+  el('adminPassword').value = '';
 }
 function showPublicView(){
   el('publicView').style.display = 'block';
@@ -895,8 +913,21 @@ function showPublicView(){
   renderSpotlight();
   renderRail();
 }
-function checkPin(){
-  if(el('pinInput').value === state.adminPin){
+
+/* =========================================================
+   ADMIN AUTH — Firebase Authentication (Email/Password)
+   ========================================================= */
+async function checkPin(){
+  const email = el('adminEmail').value.trim();
+  const password = el('adminPassword').value;
+  if(!email || !password){ showToast('الرجاء إدخال البريد وكلمة المرور', 'error'); return; }
+
+  const btn = el('btnCheckPin');
+  const originalLabel = btn.textContent;
+  btn.textContent = 'جارِ الدخول...';
+
+  try{
+    await auth.signInWithEmailAndPassword(email, password);
     el('pinGate').style.display = 'none';
     el('adminPanel').style.display = 'block';
     state.adminTab = 'projects';
@@ -905,9 +936,20 @@ function checkPin(){
       Notification.requestPermission();
     }
     startPledgesRealtimeListener();
-  } else {
-    showToast('الرمز غير صحيح', 'error');
+    resetIdleTimer();
+  } catch(e){
+    console.error('Sign-in failed', e);
+    showToast('البريد أو كلمة المرور غير صحيحة', 'error');
+  } finally {
+    btn.textContent = originalLabel;
   }
+}
+
+async function adminSignOut(){
+  clearTimeout(idleTimer);
+  await auth.signOut();
+  showToast('تم تسجيل الخروج', 'success');
+  showPublicView();
 }
 
 const TAB_META = {
@@ -925,9 +967,9 @@ function renderTabLabels(){
     <button data-adm="identity">${Icon.building} بيانات المركز</button>
     <button data-adm="payment">${Icon.card} وسيلة الدفع</button>
     <button data-adm="ticker">${Icon.folder} الشريط المتحرك</button>
-    <button data-adm="security">${Icon.shield} تغيير رمز الدخول</button>
-    <button data-action="export">${Icon.download} تصدير التبرعات (Excel/CSV)</button>
+    <button data-action="export">${Icon.download} تصدير Excel منسّق</button>
     <button data-action="backup">${Icon.download} نسخة احتياطية كاملة (JSON)</button>
+    <button data-action="signout">${Icon.logout} تسجيل الخروج</button>
   `;
   el('settingsMenu').querySelectorAll('[data-adm]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
@@ -940,13 +982,19 @@ function renderTabLabels(){
   el('settingsMenu').querySelectorAll('[data-action="export"]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       el('settingsMenu').classList.remove('show');
-      exportPledgesCSV();
+      exportPledgesExcel();
     });
   });
   el('settingsMenu').querySelectorAll('[data-action="backup"]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       el('settingsMenu').classList.remove('show');
       exportFullBackupJSON();
+    });
+  });
+  el('settingsMenu').querySelectorAll('[data-action="signout"]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      el('settingsMenu').classList.remove('show');
+      adminSignOut();
     });
   });
 }
@@ -974,6 +1022,12 @@ function startPledgesRealtimeListener(){
   db.collection('pledges').onSnapshot((snapshot)=>{
     if(pledgesListenerFirstSnapshot){
       pledgesListenerFirstSnapshot = false;
+      snapshot.docChanges().forEach((change)=>{
+        const p = { id: change.doc.id, ...change.doc.data() };
+        if(change.type === 'added' && !state.pledges.some(x => x.id === p.id)){
+          state.pledges.push(p);
+        }
+      });
       return;
     }
     let sawNewPledge = false;
@@ -1058,7 +1112,6 @@ function renderAdmin(){
   if(state.adminTab === 'identity') return renderIdentityTab(content);
   if(state.adminTab === 'payment')  return renderPaymentTab(content);
   if(state.adminTab === 'ticker')   return renderTickerTab(content);
-  if(state.adminTab === 'security') return renderSecurityTab(content);
   if(state.adminTab === 'projects') return renderProjectsTab(content);
   renderPledgesTab(content, state.adminTab);
 }
@@ -1142,23 +1195,6 @@ function renderTickerTab(content){
   content.querySelectorAll('[data-delticker]').forEach(btn=>{
     btn.addEventListener('click', ()=> deleteTickerPhrase(parseInt(btn.dataset.delticker, 10)));
   });
-}
-
-function renderSecurityTab(content){
-  content.innerHTML = `
-    <div class="panel">
-      <h3>${Icon.shield} تغيير رمز الدخول</h3>
-      <div class="panel-sub">رمز الدخول (PIN) الحالي مطلوب لتأكيد التغيير. هذا الرمز هو ما يُستخدم لفتح لوحة الإدارة</div>
-      <label>الرمز الحالي</label>
-      <input type="text" id="secCurrentPin" placeholder="أدخل الرمز الحالي">
-      <label>الرمز الجديد</label>
-      <input type="text" id="secNewPin" placeholder="أدخل الرمز الجديد">
-      <label>تأكيد الرمز الجديد</label>
-      <input type="text" id="secConfirmPin" placeholder="أعد كتابة الرمز الجديد">
-      <button class="btn btn-primary" id="btnSavePin">${Icon.check} حفظ الرمز الجديد</button>
-    </div>
-  `;
-  el('btnSavePin').addEventListener('click', savePin);
 }
 
 function renderProjectsTab(content){
@@ -1343,45 +1379,74 @@ function printMonthReport(key, statusFilter){
   window.print();
 }
 
-function csvCell(v){
-  const s = String(v ?? '');
-  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-}
-function exportPledgesCSV(){
+function exportPledgesExcel(){
   if(!state.pledges.length){ showToast('لا توجد تبرعات لتصديرها', 'error'); return; }
+  if(typeof XLSX === 'undefined'){ showToast('تعذّر تحميل مكتبة التصدير — تحقق من الاتصال', 'error'); return; }
+
   const statusLabel = { pending:'بانتظار التأكيد', confirmed:'مؤكد', archived:'مؤرشف' };
-  const headers = ['رقم التبرع', 'الفئة', 'المبلغ (د.ب)', 'الحالة', 'التاريخ والوقت', 'يوجد إيصال', 'الملاحظات'];
+  const statusColor = { pending:'FBE7C3', confirmed:'D9EEDD', archived:'E9E4D8' };
   const sorted = state.pledges.slice().sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
-  const rows = sorted.map(p => [
-    p.id,
-    p.catName,
-    money(p.amount),
-    statusLabel[p.status] || p.status,
+
+  const headers = ['التاريخ والوقت', 'الفئة', 'المبلغ (د.ب)', 'الحالة', 'يوجد إيصال', 'الملاحظات'];
+  const aoa = [headers, ...sorted.map(p => [
     new Date(p.createdAt).toLocaleString('ar-BH'),
+    p.catName,
+    p.amount,
+    statusLabel[p.status] || p.status,
     p.receiptImage ? 'نعم' : 'لا',
     p.notes || ''
-  ]);
+  ])];
+
   const totalConfirmed = state.pledges.filter(p => p.status === 'confirmed').reduce((s,p) => s + p.amount, 0);
   const totalPending   = state.pledges.filter(p => p.status === 'pending').reduce((s,p) => s + p.amount, 0);
   const totalArchived  = state.pledges.filter(p => p.status === 'archived').reduce((s,p) => s + p.amount, 0);
+  aoa.push([]);
+  aoa.push(['', '', totalConfirmed, 'إجمالي مؤكد', '', '']);
+  aoa.push(['', '', totalPending, 'إجمالي بانتظار التأكيد', '', '']);
+  aoa.push(['', '', totalArchived, 'إجمالي مؤرشف', '', '']);
 
-  const lines = [headers, ...rows].map(r => r.map(csvCell).join(','));
-  lines.push('');
-  lines.push([csvCell('إجمالي المؤكد (د.ب)'), csvCell(money(totalConfirmed))].join(','));
-  lines.push([csvCell('إجمالي بانتظار التأكيد (د.ب)'), csvCell(money(totalPending))].join(','));
-  lines.push([csvCell('إجمالي المؤرشف (د.ب)'), csvCell(money(totalArchived))].join(','));
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [
+    { wch: 20 }, { wch: 18 }, { wch: 13 }, { wch: 17 }, { wch: 12 }, { wch: 36 }
+  ];
 
-  const csv = '\uFEFF' + lines.join('\r\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  const centerAlign = { alignment: { horizontal: 'center', vertical: 'center' } };
+  headers.forEach((_, c)=>{
+    const ref = XLSX.utils.encode_cell({ r:0, c });
+    if(ws[ref]) ws[ref].s = {
+      font: { bold: true, color: { rgb: 'FFFFFF' } },
+      fill: { fgColor: { rgb: '1E4638' } },
+      ...centerAlign
+    };
+  });
+
+  sorted.forEach((p, i)=>{
+    const r = i + 1;
+    [0,1,4].forEach(c=>{
+      const ref = XLSX.utils.encode_cell({ r, c });
+      if(ws[ref]) ws[ref].s = centerAlign;
+    });
+    const amtRef = XLSX.utils.encode_cell({ r, c:2 });
+    if(ws[amtRef]){ ws[amtRef].z = '0.00'; ws[amtRef].s = centerAlign; }
+    const statusRef = XLSX.utils.encode_cell({ r, c:3 });
+    if(ws[statusRef]) ws[statusRef].s = { fill: { fgColor: { rgb: statusColor[p.status] || 'FFFFFF' } }, ...centerAlign };
+  });
+
+  const totalsStart = aoa.length - 3;
+  for(let i=0;i<3;i++){
+    const r = totalsStart + i;
+    const labelRef = XLSX.utils.encode_cell({ r, c:3 });
+    const amtRef = XLSX.utils.encode_cell({ r, c:2 });
+    if(ws[labelRef]) ws[labelRef].s = { font: { bold: true }, ...centerAlign };
+    if(ws[amtRef]){ ws[amtRef].z = '0.00'; ws[amtRef].s = { font: { bold: true }, ...centerAlign }; }
+  }
+
+  const wb = XLSX.utils.book_new();
+  wb.Workbook = { Views: [{ RTL: true }] };
+  XLSX.utils.book_append_sheet(wb, ws, 'التبرعات');
+
   const dateStr = new Date().toISOString().slice(0, 10);
-  a.href = url;
-  a.download = `تبرعات-${dateStr}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  XLSX.writeFile(wb, `تبرعات-${dateStr}.xlsx`);
   showToast('تم تصدير الملف', 'success');
 }
 
@@ -1395,7 +1460,6 @@ function exportFullBackupJSON(){
       pledges: state.pledges,
       ticker: state.ticker,
       featuredCatId: state.featuredCatId,
-      adminPin: state.adminPin,
     };
     const json = JSON.stringify(backup, null, 2);
     const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
@@ -1538,18 +1602,6 @@ async function removeBarcodeImage(){
   await Store.save('payment', state.payment);
   renderAdmin();
 }
-async function savePin(){
-  const current = el('secCurrentPin').value.trim();
-  const next = el('secNewPin').value.trim();
-  const confirmVal = el('secConfirmPin').value.trim();
-  if(current !== state.adminPin){ showToast('الرمز الحالي غير صحيح', 'error'); return; }
-  if(!next || next.length < 6){ showToast('الرجاء إدخال رمز جديد لا يقل عن 6 خانات (حروف وأرقام أفضل)', 'error'); return; }
-  if(next !== confirmVal){ showToast('الرمز الجديد وتأكيده غير متطابقين', 'error'); return; }
-  state.adminPin = next;
-  await Store.save('adminPin', state.adminPin);
-  showToast('تم تغيير رمز الدخول', 'success');
-  renderAdmin();
-}
 async function addTickerPhrase(){
   const text = el('newTickerText').value.trim();
   const src = el('newTickerSrc').value.trim();
@@ -1594,6 +1646,9 @@ document.addEventListener('click', ()=> el('settingsMenu').classList.remove('sho
 Object.entries(TAB_META).forEach(([key, meta])=>{
   el(meta.id).addEventListener('click', ()=> setAdminTab(key));
 });
+
+// Allow Enter key to submit the login form for convenience
+el('adminPassword').addEventListener('keydown', (e)=>{ if(e.key === 'Enter') checkPin(); });
 
 if(new URLSearchParams(location.search).has('admin')){
   el('linkToAdmin').addEventListener('click', showAdminGate);
