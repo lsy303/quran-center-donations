@@ -667,6 +667,8 @@ async function loadAll(){
   state.identity  = await Store.load('identity', { ...DEFAULT_IDENTITY });
   state.payment   = await Store.load('payment', { ...DEFAULT_PAYMENT });
   state.categories = await Store.load('categories', DEFAULT_CATEGORIES);
+  await migrateLegacyPledgesIfNeeded();
+  state.pledges   = await PledgesStore.loadAll();
   state.ticker    = await Store.load('ticker', DEFAULT_TICKER);
   const featured  = await Store.load('featured', { catId: null });
   state.featuredCatId = featured.catId;
