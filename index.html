@@ -3,7 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>بوابة التبرعات</title>
+<title>بوابة التبرعات — مركز الشيخان وشريفة الفارسي لتحفيظ القرآن الكريم</title>
+<meta name="description" content="ساهم في تعليم كتاب الله: تبرّع لمركز الشيخان وشريفة الفارسي لتحفيظ القرآن الكريم بتحويل بنكي مباشر، ويُوجَّه تبرّعك للمجال الذي تختاره.">
+<meta name="theme-color" content="#17392E">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="ar_BH">
+<meta property="og:site_name" content="بوابة التبرعات">
+<meta property="og:title" content="بوابة التبرعات — مركز الشيخان وشريفة الفارسي لتحفيظ القرآن الكريم">
+<meta property="og:description" content="ساهم في تعليم كتاب الله — تبرّعك يصل مباشرة لحساب المركز ويُوجَّه للمجال الذي تختاره.">
+<meta property="og:url" content="https://lsy303.github.io/quran-center-donations/">
+<meta property="og:image" content="https://lsy303.github.io/quran-center-donations/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="مركز الشيخان وشريفة الفارسي لتحفيظ القرآن الكريم — بوابة التبرعات">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://lsy303.github.io/quran-center-donations/og-image.jpg">
+<link rel="icon" type="image/png" href="og-icon.png">
+<link rel="apple-touch-icon" href="og-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -205,6 +221,17 @@
   .spotlight-card:hover .spotlight-cta{ background: var(--emerald-2); }
   .spotlight-cta svg{ width:18px; height:18px; }
   .spotlight-empty{ display:none; }
+  .share-btn{
+    border:1px solid var(--line); background:var(--white); color:var(--emerald); cursor:pointer;
+    display:inline-flex; align-items:center; gap:5px; border-radius:20px; padding:5px 11px;
+    font-size:11.5px; font-weight:700; font-family:'Cairo',sans-serif; transition: background .15s ease, border-color .15s ease;
+  }
+  .share-btn:hover{ background:var(--emerald-tint); border-color:var(--emerald-3); }
+  .share-btn svg{ width:14px; height:14px; }
+  .spotlight-card .share-btn{ position:absolute; top:22px; inset-inline-end:22px; z-index:1; }
+  .rail-go .go-end{ display:flex; align-items:center; gap:6px; }
+  .rail-go .share-btn{ padding:4px 9px; font-size:11px; }
+  @media (max-width: 420px){ .rail-go .share-btn span{ display:none; } .rail-go .share-btn{ padding:6px; border-radius:50%; } }
 
   /* ============ Category cards ============ */
   .category-rail{ display:grid; grid-template-columns: repeat(2, 1fr); gap:14px; }
@@ -238,7 +265,8 @@
   .rail-go i{ font-style:normal; width:28px; height:28px; border-radius:50%; background:var(--gold-tint); display:flex; align-items:center; justify-content:center; transition: transform .18s ease, background .18s ease; }
   .rail-chip:hover .rail-go i{ background:var(--gold); color:#fff; transform: translateX(-3px); }
   .cat-badge{ position:absolute; top:14px; inset-inline-end:14px; font-size:10.5px; font-weight:800; color:var(--gold-dark); background:var(--gold-tint); padding:3px 9px; border-radius:20px; }
-  @media (max-width: 400px){ .category-rail{ grid-template-columns: 1fr; } }
+  @media (max-width: 340px){ .category-rail{ grid-template-columns: 1fr; } }
+  @media (max-width: 420px){ .rail-chip{ padding:14px 12px 12px; } .rail-chip .rail-text b{ font-size:16.5px; } .rail-chip .rail-text span{ font-size:11.5px; } .cat-badge{ top:10px; inset-inline-end:10px; font-size:9.5px; } }
 
   /* ============ How it works ============ */
   .how{
@@ -737,6 +765,7 @@ const Icon = {
   archive: `<svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>`,
   note: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10l6-6V5a2 2 0 0 0-2-2z"/><path d="M15 21v-6h6"/><path d="M9 9h6M9 13h4"/></svg>`,
   download: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 19h16"/></svg>`,
+  share: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>`,
   logout: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>`,
 };
 function catIcon(cat){
@@ -910,6 +939,7 @@ async function loadAll(){
   renderMarquee();
   renderSpotlight();
   renderRail();
+  openDeepLinkedCategory();
 }
 
 function showToast(msg, type){
@@ -992,10 +1022,54 @@ function renderSpotlight(){
         </div>
       </div>
       ${progressHtml}
+      ${`<button type="button" class="share-btn" data-share="${cat.id}" aria-label="مشاركة">${Icon.share}<span>مشاركة</span></button>`}
       <button type="button" class="spotlight-cta">${Icon.heart} تبرّع لهذا المشروع</button>
     </div>
   `;
   container.querySelector('.spotlight-card').addEventListener('click', ()=> openDonateModal(cat.id));
+  bindShareButtons(container);
+}
+
+/* =========================================================
+   SHARING & DEEP LINKS — ?cat=<id> opens that category's donation sheet
+   ========================================================= */
+function categoryLink(catId){
+  return location.origin + location.pathname + '?cat=' + encodeURIComponent(catId);
+}
+async function shareCategory(catId){
+  const cat = state.categories.find(c => c.id === catId);
+  if(!cat) return;
+  const center = state.identity.centerName || DEFAULT_IDENTITY.centerName;
+  const url = categoryLink(catId);
+  const text = `ساهم معنا في «${cat.name}» — ${center}\nتبرّعك يصل مباشرة لحساب المركز:`;
+  if(navigator.share){
+    try{ await navigator.share({ title: cat.name, text, url }); return; }
+    catch(e){ if(e && e.name === 'AbortError') return; }
+  }
+  try{
+    await navigator.clipboard.writeText(text + '\n' + url);
+    showToast('تم نسخ رابط المشاركة', 'success');
+  }catch(e){
+    window.open('https://wa.me/?text=' + encodeURIComponent(text + '\n' + url), '_blank', 'noopener');
+  }
+}
+function bindShareButtons(scope){
+  scope.querySelectorAll('[data-share]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{ e.stopPropagation(); shareCategory(btn.dataset.share); });
+    btn.addEventListener('keydown', (e)=> e.stopPropagation());
+  });
+}
+function openDeepLinkedCategory(){
+  const catId = new URLSearchParams(location.search).get('cat');
+  if(!catId || el('publicView').style.display === 'none') return;
+  if(state.categories.some(c => c.id === catId)) openDonateModal(catId);
+}
+function clearDeepLink(){
+  const params = new URLSearchParams(location.search);
+  if(!params.has('cat')) return;
+  params.delete('cat');
+  const qs = params.toString();
+  history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
 }
 
 function renderRail(){
@@ -1005,9 +1079,10 @@ function renderRail(){
       ${c.id === state.featuredCatId ? `<span class="cat-badge">مشروع الشهر</span>` : ''}
       <div class="cat-icon">${catIcon(c)}</div>
       <div class="rail-text"><b>${c.name}</b>${c.desc && c.desc !== '—' ? `<span>${c.desc}</span>` : ''}</div>
-      <div class="rail-go">تبرّع الآن <i><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></i></div>
+      <div class="rail-go">تبرّع الآن <span class="go-end">${`<button type="button" class="share-btn" data-share="${c.id}" aria-label="مشاركة">${Icon.share}<span>مشاركة</span></button>`}<i><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></i></span></div>
     </div>
   `).join('');
+  bindShareButtons(container);
   container.querySelectorAll('.rail-chip').forEach(chip=>{
     chip.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openDonateModal(chip.dataset.cat); } });
   });
@@ -1051,6 +1126,7 @@ function updateReceiptLabel(){
 
 function closeDonateModal(){
   el('donateOverlay').classList.remove('show');
+  clearDeepLink();
   document.body.style.overflow = '';
   el('qrcode').innerHTML = '';
   state.pendingDraft = null;
