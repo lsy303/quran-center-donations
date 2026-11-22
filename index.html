@@ -766,6 +766,8 @@ let state = {
   pledges: [],
   ticker: [],
   featuredCatId: null,
+  publicTotals: {},
+  pledgesReady: false,
   activeCategory: null,
   pendingDraft: null,
   adminTab: 'pending',
@@ -901,6 +903,8 @@ async function loadAll(){
   state.ticker    = await Store.load('ticker', DEFAULT_TICKER);
   const featured  = await Store.load('featured', { catId: null });
   state.featuredCatId = featured.catId;
+  const totals    = await Store.load('totals', { byCat: {} });
+  state.publicTotals = (totals && totals.byCat) || {};
   renderHeader();
   renderAdminSeals();
   renderMarquee();
@@ -945,7 +949,10 @@ function renderMarquee(){
   el('marqueeTrack').innerHTML = items + items;
 }
 
+/* Public visitors can't read the pledges collection (security rules), so the
+   admin session publishes per-category confirmed totals to kv/totals. */
 function confirmedTotal(catId){
+  if(!state.pledgesReady) return Number(state.publicTotals[catId]) || 0;
   return state.pledges
     .filter(p => p.catId === catId && p.status === 'confirmed')
     .reduce((sum, p) => sum + p.amount, 0);
@@ -1292,12 +1299,15 @@ function startPledgesRealtimeListener(){
   db.collection('pledges').onSnapshot((snapshot)=>{
     if(pledgesListenerFirstSnapshot){
       pledgesListenerFirstSnapshot = false;
+      state.pledgesReady = true;
       snapshot.docChanges().forEach((change)=>{
         const p = { id: change.doc.id, ...change.doc.data() };
         if(change.type === 'added' && !state.pledges.some(x => x.id === p.id)){
           state.pledges.push(p);
         }
       });
+      renderSpotlight(); renderRail();
+      if(el('adminPanel').style.display !== 'none') renderAdmin();
       return;
     }
     let sawNewPledge = false;
@@ -1369,7 +1379,22 @@ function updatePendingBadge(){
   }
 }
 
+let lastPublishedTotals = null;
+async function publishPublicTotals(){
+  if(!state.pledgesReady || !auth.currentUser) return;
+  const byCat = {};
+  state.pledges.filter(p => p.status === 'confirmed').forEach(p=>{
+    byCat[p.catId] = Math.round(((byCat[p.catId] || 0) + Number(p.amount || 0)) * 1000) / 1000;
+  });
+  const sig = JSON.stringify(byCat);
+  if(sig === lastPublishedTotals) return;
+  lastPublishedTotals = sig;
+  state.publicTotals = byCat;
+  await Store.save('totals', { byCat, updatedAt: new Date().toISOString() });
+}
+
 function renderAdmin(){
+  publishPublicTotals();
   const totalConfirmed = state.pledges.filter(p=>p.status==='confirmed').reduce((s,p)=>s+p.amount,0);
   const totalPending   = state.pledges.filter(p=>p.status==='pending').reduce((s,p)=>s+p.amount,0);
   el('totalsRow').innerHTML = `
