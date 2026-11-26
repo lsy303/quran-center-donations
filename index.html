@@ -25,7 +25,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <style>
   /* =========================================================
      DESIGN SYSTEM — emerald · gold · parchment
@@ -925,22 +924,62 @@ const DEFAULT_TICKER = [
   { text: 'أفضل الصدقة جهد المُقِلّ', src: 'رواه أبو داود' },
 ];
 
-async function loadAll(){
-  state.identity  = await Store.load('identity', { ...DEFAULT_IDENTITY });
-  state.payment   = await Store.load('payment', { ...DEFAULT_PAYMENT });
-  state.categories = await Store.load('categories', DEFAULT_CATEGORIES);
-  await migrateLegacyPledgesIfNeeded();
-  state.pledges   = await PledgesStore.loadAll();
-  state.ticker    = await Store.load('ticker', DEFAULT_TICKER);
-  const featured  = await Store.load('featured', { catId: null });
-  state.featuredCatId = featured.catId;
-  const totals    = await Store.load('totals', { byCat: {} });
-  state.publicTotals = (totals && totals.byCat) || {};
+/* =========================================================
+   LOADING — paint instantly from the last visit's cache, then refresh
+   from Firestore with all reads in parallel (one round trip, not eight).
+   Pledges aren't readable by the public; the admin gets them from the
+   realtime listener after sign-in.
+   ========================================================= */
+const PUBLIC_CACHE_KEY = 'qcd-public-cache-v1';
+function readPublicCache(){
+  try{ return JSON.parse(localStorage.getItem(PUBLIC_CACHE_KEY) || 'null'); }catch(e){ return null; }
+}
+function writePublicCache(){
+  try{
+    localStorage.setItem(PUBLIC_CACHE_KEY, JSON.stringify({
+      identity: state.identity, payment: state.payment, categories: state.categories,
+      ticker: state.ticker, featuredCatId: state.featuredCatId, publicTotals: state.publicTotals,
+    }));
+  }catch(e){ /* storage full or blocked — cache is optional */ }
+}
+function applyPublicData(d){
+  state.identity      = d.identity || { ...DEFAULT_IDENTITY };
+  state.payment       = d.payment || { ...DEFAULT_PAYMENT };
+  state.categories    = d.categories || DEFAULT_CATEGORIES;
+  state.ticker        = d.ticker || DEFAULT_TICKER;
+  state.featuredCatId = d.featuredCatId ?? null;
+  state.publicTotals  = d.publicTotals || {};
+}
+function renderPublic(){
   renderHeader();
   renderAdminSeals();
   renderMarquee();
   renderSpotlight();
   renderRail();
+}
+async function loadAll(){
+  const cached = readPublicCache();
+  if(cached){
+    applyPublicData(cached);
+    renderPublic();
+    openDeepLinkedCategory();
+  }
+  const [identity, payment, categories, ticker, featured, totals] = await Promise.all([
+    Store.load('identity', { ...DEFAULT_IDENTITY }),
+    Store.load('payment', { ...DEFAULT_PAYMENT }),
+    Store.load('categories', DEFAULT_CATEGORIES),
+    Store.load('ticker', DEFAULT_TICKER),
+    Store.load('featured', { catId: null }),
+    Store.load('totals', { byCat: {} }),
+  ]);
+  applyPublicData({
+    identity, payment, categories, ticker,
+    featuredCatId: featured && featured.catId,
+    publicTotals: (totals && totals.byCat) || {},
+  });
+  writePublicCache();
+  // Safe while the sheet is open: these only redraw the page behind it.
+  renderPublic();
   openDeepLinkedCategory();
 }
 
@@ -1062,10 +1101,12 @@ function bindShareButtons(scope){
     btn.addEventListener('keydown', (e)=> e.stopPropagation());
   });
 }
+let deepLinkHandled = false;
 function openDeepLinkedCategory(){
+  if(deepLinkHandled) return;
   const catId = new URLSearchParams(location.search).get('cat');
   if(!catId || el('publicView').style.display === 'none') return;
-  if(state.categories.some(c => c.id === catId)) openDonateModal(catId);
+  if(state.categories.some(c => c.id === catId)){ deepLinkHandled = true; openDonateModal(catId); }
 }
 function clearDeepLink(){
   const params = new URLSearchParams(location.search);
@@ -1291,6 +1332,7 @@ async function checkPin(){
     if('Notification' in window && Notification.permission === 'default'){
       Notification.requestPermission();
     }
+    await migrateLegacyPledgesIfNeeded();
     startPledgesRealtimeListener();
     resetIdleTimer();
   } catch(e){
@@ -1753,8 +1795,23 @@ function printMonthReport(key, statusFilter){
   window.print();
 }
 
-function exportPledgesExcel(){
+let xlsxLoading = null;
+function loadXlsxLib(){
+  if(typeof XLSX !== 'undefined') return Promise.resolve();
+  if(!xlsxLoading){
+    xlsxLoading = new Promise((resolve, reject)=>{
+      const sc = document.createElement('script');
+      sc.src = 'https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js';
+      sc.onload = resolve;
+      sc.onerror = ()=>{ xlsxLoading = null; reject(new Error('xlsx load failed')); };
+      document.head.appendChild(sc);
+    });
+  }
+  return xlsxLoading;
+}
+async function exportPledgesExcel(){
   if(!state.pledges.length){ showToast('لا توجد تبرعات لتصديرها', 'error'); return; }
+  try{ showToast('جارٍ تجهيز الملف...'); await loadXlsxLib(); }catch(e){}
   if(typeof XLSX === 'undefined'){ showToast('تعذّر تحميل مكتبة التصدير — تحقق من الاتصال', 'error'); return; }
 
   const statusLabel = { pending:'بانتظار التأكيد', confirmed:'مؤكد', archived:'مؤرشف' };
