@@ -544,6 +544,31 @@
   .panel{ background:var(--white); border:1px solid var(--line-2); border-radius:18px; padding:20px; margin-bottom:18px; box-shadow: var(--shadow-sm); }
   .panel h3{ font-family:'Amiri',serif; margin:0 0 5px; font-size:18px; display:flex; align-items:center; gap:8px; color:var(--emerald); }
   .panel-sub{ font-size:12px; color:var(--ink-soft); margin:0 0 16px; line-height:1.6; }
+  .period-bar{ display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+  .period-bar label{ margin:0; font-size:12px; color:var(--ink-soft); }
+  .period-select{
+    flex:1; min-width:150px; appearance:none; -webkit-appearance:none;
+    padding:10px 36px 10px 14px; border-radius:12px; border:1.5px solid var(--line); background:var(--white);
+    font-family:'Cairo',sans-serif; font-size:13.5px; font-weight:700; color:var(--ink); cursor:pointer;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236E6350' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:left 14px center;
+  }
+  .period-select:focus{ outline:none; border-color:var(--gold); }
+  .reset-btn{
+    border:1.5px solid var(--line); background:var(--white); color:var(--rose); border-radius:12px;
+    padding:9px 14px; font-size:12.5px; font-weight:800; cursor:pointer; font-family:'Cairo',sans-serif;
+    display:inline-flex; align-items:center; gap:6px;
+  }
+  .reset-btn:hover{ border-color:var(--rose); background:#FBEFEF; }
+  .reset-confirm{
+    background:#FBEFEF; border:1px solid #F0D6D6; border-radius:14px; padding:14px; margin-bottom:12px;
+    font-size:12.5px; line-height:1.8; color:var(--ink-2);
+  }
+  .reset-confirm b{ color:var(--rose); }
+  .reset-confirm .note-editor-actions{ margin-top:10px; }
+  .reset-confirm .danger{ background:var(--rose); color:#fff; }
+  .period-hint{ font-size:11.5px; color:var(--ink-soft); margin:-2px 2px 12px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .period-hint button{ border:none; background:none; color:var(--gold-dark); font-weight:700; font-size:11.5px; cursor:pointer; text-decoration:underline; padding:0; font-family:'Cairo',sans-serif; }
   .totals-row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:6px; }
   .total-card{
     background:var(--white); border:1px solid var(--line-2); border-radius:16px; padding:16px; text-align:right;
@@ -726,7 +751,9 @@
       </div>
     </div>
 
+    <div id="periodBar"></div>
     <div class="totals-row" id="totalsRow"></div>
+    <div id="periodHint"></div>
 
     <div class="nav-scroll">
       <div class="tab-row">
@@ -801,6 +828,9 @@ let state = {
   activeCategory: null,
   pendingDraft: null,
   adminTab: 'pending',
+  settlement: { resets: [] },
+  totalsPeriod: null,
+  showResetConfirm: false,
   unreadPendingCount: 0,
   openNotesId: null,
   editCatId: null,
@@ -1267,7 +1297,7 @@ function closeLightbox(){
 }
 
 function openConfirmedBreakdown(){
-  const confirmed = state.pledges.filter(p => p.status === 'confirmed');
+  const confirmed = confirmedInPeriod();
   const totalConfirmed = confirmed.reduce((s,p)=> s+p.amount, 0);
   const sums = {};
   confirmed.forEach(p=>{
@@ -1281,12 +1311,12 @@ function openConfirmedBreakdown(){
       const pct = totalConfirmed > 0 ? Math.round((amount / totalConfirmed) * 100) : 0;
       return `
         <div class="pledge">
-          <div class="info"><b>${name}</b><span>${pct}% من الإجمالي المؤكد</span></div>
+          <div class="info"><b>${name}</b><span>${pct}% من الإجمالي المؤكد — ${periodLabel()}</span></div>
           <div class="amt">${money(amount)}</div>
         </div>
       `;
     }).join('');
-  el('breakdownList').innerHTML = rows || `<div class="empty">${Icon.clock}<div>لا توجد تبرعات مؤكدة بعد</div></div>`;
+  el('breakdownList').innerHTML = rows || `<div class="empty">${Icon.clock}<div>لا توجد تبرعات مؤكدة في هذه الفترة</div></div>`;
   el('breakdownModal').classList.add('show');
 }
 function closeConfirmedBreakdown(){
@@ -1333,6 +1363,9 @@ async function checkPin(){
       Notification.requestPermission();
     }
     await migrateLegacyPledgesIfNeeded();
+    const settlement = await Store.load('settlement', { resets: [] });
+    state.settlement = { resets: (settlement && settlement.resets) || [] };
+    renderAdmin();
     startPledgesRealtimeListener();
     resetIdleTimer();
   } catch(e){
@@ -1514,10 +1547,94 @@ async function publishPublicTotals(){
   await Store.save('totals', { byCat, updatedAt: new Date().toISOString() });
 }
 
+/* =========================================================
+   INCOME PERIOD — "reset" (تصفير) only moves a cutoff date for the admin
+   income card. Pledges, reports and public project progress are untouched.
+   ========================================================= */
+function lastResetAt(){
+  const r = state.settlement.resets;
+  return r.length ? r[r.length - 1] : null;
+}
+function currentPeriod(){
+  if(state.totalsPeriod) return state.totalsPeriod;
+  return lastResetAt() ? 'since' : 'all';
+}
+function pledgeIncomeDate(p){ return p.confirmedAt || p.createdAt; }
+function confirmedInPeriod(){
+  const period = currentPeriod();
+  const confirmed = state.pledges.filter(p => p.status === 'confirmed');
+  if(period === 'all') return confirmed;
+  if(period === 'since'){
+    const cut = lastResetAt();
+    return cut ? confirmed.filter(p => new Date(pledgeIncomeDate(p)) > new Date(cut)) : confirmed;
+  }
+  return confirmed.filter(p => monthKey(p.createdAt) === period);
+}
+function periodLabel(){
+  const period = currentPeriod();
+  if(period === 'all') return 'كل الفترات';
+  if(period === 'since'){
+    const cut = lastResetAt();
+    return cut ? 'منذ آخر تصفير — ' + new Date(cut).toLocaleDateString('ar-BH', { day:'numeric', month:'long', year:'numeric' }) : 'كل الفترات';
+  }
+  return monthLabel(period);
+}
+function renderPeriodBar(){
+  const months = [...new Set(state.pledges.filter(p => p.status === 'confirmed').map(p => monthKey(p.createdAt)))].sort().reverse();
+  const period = currentPeriod();
+  const opts = [];
+  if(lastResetAt()) opts.push(['since', 'منذ آخر تصفير']);
+  opts.push(['all', 'كل الفترات']);
+  months.forEach(m => opts.push([m, monthLabel(m)]));
+  el('periodBar').innerHTML = `
+    ${state.showResetConfirm ? `
+      <div class="reset-confirm">
+        <b>تصفير المدخول؟</b><br>
+        سيبدأ احتساب «الإجمالي المؤكد» من هذه اللحظة. لن يُحذف أي تبرع، وستبقى التبرعات السابقة في التبويبات والتقارير وفي شريط تقدّم المشاريع.
+        <div class="note-editor-actions">
+          <button class="danger" id="btnDoReset">${Icon.check} نعم، صفّر المدخول</button>
+          <button class="cancel-btn" id="btnCancelReset">إلغاء</button>
+        </div>
+      </div>` : ''}
+    <div class="period-bar">
+      <select class="period-select" id="periodSelect" aria-label="فترة المدخول">
+        ${opts.map(([v, t]) => `<option value="${v}" ${v === period ? 'selected' : ''}>${t}</option>`).join('')}
+      </select>
+      <button class="reset-btn" id="btnAskReset">${Icon.clock} تصفير المدخول</button>
+    </div>`;
+  el('periodSelect').addEventListener('change', (e)=>{ state.totalsPeriod = e.target.value; renderAdmin(); });
+  el('btnAskReset').addEventListener('click', ()=>{ state.showResetConfirm = true; renderAdmin(); });
+  const doBtn = document.getElementById('btnDoReset');
+  if(doBtn){
+    doBtn.addEventListener('click', resetIncome);
+    el('btnCancelReset').addEventListener('click', ()=>{ state.showResetConfirm = false; renderAdmin(); });
+  }
+}
+async function resetIncome(){
+  state.settlement.resets.push(new Date().toISOString());
+  state.totalsPeriod = 'since';
+  state.showResetConfirm = false;
+  await Store.save('settlement', state.settlement);
+  showToast('تم تصفير المدخول', 'success');
+  renderAdmin();
+}
+async function undoLastReset(){
+  if(!state.settlement.resets.length) return;
+  state.settlement.resets.pop();
+  state.totalsPeriod = null;
+  await Store.save('settlement', state.settlement);
+  showToast('تم التراجع عن آخر تصفير', 'success');
+  renderAdmin();
+}
+
 function renderAdmin(){
   publishPublicTotals();
-  const totalConfirmed = state.pledges.filter(p=>p.status==='confirmed').reduce((s,p)=>s+p.amount,0);
+  renderPeriodBar();
+  const totalConfirmed = confirmedInPeriod().reduce((s,p)=>s+p.amount,0);
   const totalPending   = state.pledges.filter(p=>p.status==='pending').reduce((s,p)=>s+p.amount,0);
+  el('periodHint').innerHTML = `<div class="period-hint">المدخول المعروض: <b>${periodLabel()}</b>${currentPeriod() === 'since' ? `<button id="btnUndoReset">تراجع عن آخر تصفير</button>` : ''}</div>`;
+  const undo = document.getElementById('btnUndoReset');
+  if(undo) undo.addEventListener('click', undoLastReset);
   el('totalsRow').innerHTML = `
     <div class="total-card" id="totalConfirmedCard" style="cursor:pointer;"><div class="t-icon" style="color:var(--ok);">${Icon.checkCircle}</div><b>${money(totalConfirmed)}</b><span>إجمالي مؤكد (د.ب)</span></div>
     <div class="total-card"><div class="t-icon" style="color:var(--gold-dark);">${Icon.clock}</div><b>${money(totalPending)}</b><span>بانتظار التأكيد (د.ب)</span></div>
@@ -1927,7 +2044,14 @@ async function saveNotes(id){
 
 async function confirmPledge(id){
   const p = state.pledges.find(x => x.id === id);
-  if(p){ p.status = 'confirmed'; await PledgesStore.updateStatus(id, 'confirmed'); showToast('تم التأكيد', 'success'); renderAdmin(); }
+  if(p){
+    p.status = 'confirmed';
+    p.confirmedAt = new Date().toISOString();
+    await PledgesStore.updateStatus(id, 'confirmed');
+    // Separate write so a rules mismatch on the extra field never blocks the confirmation itself.
+    db.collection('pledges').doc(id).update({ confirmedAt: p.confirmedAt }).catch(e => console.warn('confirmedAt not saved', e));
+    showToast('تم التأكيد', 'success'); renderAdmin();
+  }
 }
 async function archivePledge(id){
   const p = state.pledges.find(x => x.id === id);
